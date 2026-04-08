@@ -56,65 +56,50 @@ function RecommendationPage() {
 };
 
   return (
-    result.fallback && React.createElement("p", {
-  className:"text-red-500 font-bold mb-2"
-}, "Maaf, tidak ada setup sesuai budget. Berikut opsi terdekat:")
-    
-    React.createElement("div", {className:"p-6"},
-      React.createElement("h1", {className:"text-xl font-bold"}, "Bar Setup Recommendation"),
+  React.createElement("div", {className:"p-6"},
 
-      React.createElement("input", {
-        type:"number",
-        placeholder:"Budget",
-        onChange:e=>setBudget(Number(e.target.value)),
-        className:"border p-2 mr-2"
-      }),
+    React.createElement("h1", {className:"text-xl font-bold"}, "Bar Setup Recommendation"),
 
-      React.createElement("button", {
-        onClick:generate,
-        className:"bg-black text-white px-4 py-2"
-      }, "Generate"),
+    React.createElement("input", {
+      type:"number",
+      placeholder:"Budget",
+      onChange:e=>setBudget(Number(e.target.value)),
+      className:"border p-2 mr-2"
+    }),
 
-      result && React.createElement("div", {className:"mt-4 border p-4"},
+    React.createElement("button", {
+      onClick:generate,
+      className:"bg-black text-white px-4 py-2"
+    }, "Generate"),
 
-        React.createElement("p", {className:"font-bold"}, "Recommended Setup"),
+    // ✅ SHOW MESSAGE HERE
+    result?.fallback && React.createElement("p", {
+      className:"text-red-500 font-bold mt-4"
+    }, "Maaf, tidak ada setup sesuai budget. Berikut opsi terdekat:"),
 
-        React.createElement("p", null, "Machine: " + result.machine?.name),
-        React.createElement("p", null, "Grinder: " + result.grinder?.name),
+    result && React.createElement("div", {className:"mt-4 border p-4"},
 
-        React.createElement("div", {className:"mt-4 text-sm text-gray-600"},
-          "✔ Sesuai budget",
-          React.createElement("br"),
-          "✔ Cocok untuk penggunaan umum",
-          React.createElement("br"),
-          "✔ Value terbaik di range ini"
-        ),
+      React.createElement("p", {className:"font-bold"}, "Recommended Setup"),
 
-        React.createElement("a", {
-          href: `https://wa.me/6285282704370?text=Halo, saya dapat rekomendasi:%0AMachine: ${result.machine?.name}%0AGrinder: ${result.grinder?.name}%0ABudget: ${budget}`,
-          target: "_blank",
-          className:"block mt-4 bg-green-500 text-white text-center py-2"
-        }, "Diskusi via WhatsApp"),
+      React.createElement("p", null, "Machine: " + result.machine?.name),
+      React.createElement("p", null, "Grinder: " + result.grinder?.name),
 
-        React.createElement("div", {className:"mt-4"},
-          React.createElement("input", {
-            placeholder:"Nama",
-            className:"border p-2 w-full mb-2"
-          }),
-          React.createElement("input", {
-            placeholder:"No HP",
-            className:"border p-2 w-full mb-2"
-          }),
-          React.createElement("button", {
-            className:"bg-black text-white w-full py-2"
-          }, "Minta Penawaran")
-        )
-      )
+      React.createElement("div", {className:"mt-4 text-sm text-gray-600"},
+        "✔ Sesuai budget",
+        React.createElement("br"),
+        "✔ Cocok untuk penggunaan umum",
+        React.createElement("br"),
+        "✔ Value terbaik di range ini"
+      ),
+
+      React.createElement("a", {
+        href: `https://wa.me/6285282704370?text=Halo, saya dapat rekomendasi:%0AMachine: ${result.machine?.name}%0AGrinder: ${result.grinder?.name}%0ABudget: ${budget}`,
+        target: "_blank",
+        className:"block mt-4 bg-green-500 text-white text-center py-2"
+      }, "Diskusi via WhatsApp")
     )
-  );
-}
-
-// PAGE 2
+  )
+);// PAGE 2
 function ComparePage() {
   const [type, setType] = useState("machine");
   const [selected, setSelected] = useState([]);
@@ -167,6 +152,7 @@ function ComparePage() {
     )
   );
 }
+  
 // MAIN APP
 function App() {
   const [page, setPage] = useState("recommendation");
