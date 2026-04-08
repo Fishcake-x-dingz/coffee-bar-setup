@@ -54,38 +54,38 @@ function RecommendationPage() {
 
       result && React.createElement("div", {className:"mt-4 border p-4"},
 
-  React.createElement("p", {className:"font-bold"}, "Recommended Setup"),
+        React.createElement("p", {className:"font-bold"}, "Recommended Setup"),
 
-  React.createElement("p", null, "Machine: " + result.machine?.name),
-  React.createElement("p", null, "Grinder: " + result.grinder?.name),
-
-  React.createElement("div", {className:"mt-4 text-sm text-gray-600"},
-    "✔ Sesuai budget\n",
-    "✔ Cocok untuk penggunaan umum\n",
-    "✔ Value terbaik di range ini"
-  ),
-
-  React.createElement("a", {
-    href: `https://wa.me/6285282704370?text=Halo, saya dapat rekomendasi:%0AMachine: ${result.machine?.name}%0AGrinder: ${result.grinder?.name}%0ABudget: ${budget}`,
-    target: "_blank",
-    className:"block mt-4 bg-green-500 text-white text-center py-2"
-  }, "Diskusi via WhatsApp")
-),
-  React.createElement("div", {className:"mt-4"},
-  React.createElement("input", {
-    placeholder:"Nama",
-    className:"border p-2 w-full mb-2"
-  }),
-  React.createElement("input", {
-    placeholder:"No HP",
-    className:"border p-2 w-full mb-2"
-  }),
-  React.createElement("button", {
-    className:"bg-black text-white w-full py-2"
-  }, "Minta Penawaran")
-)
         React.createElement("p", null, "Machine: " + result.machine?.name),
-        React.createElement("p", null, "Grinder: " + result.grinder?.name)
+        React.createElement("p", null, "Grinder: " + result.grinder?.name),
+
+        React.createElement("div", {className:"mt-4 text-sm text-gray-600"},
+          "✔ Sesuai budget",
+          React.createElement("br"),
+          "✔ Cocok untuk penggunaan umum",
+          React.createElement("br"),
+          "✔ Value terbaik di range ini"
+        ),
+
+        React.createElement("a", {
+          href: `https://wa.me/6285282704370?text=Halo, saya dapat rekomendasi:%0AMachine: ${result.machine?.name}%0AGrinder: ${result.grinder?.name}%0ABudget: ${budget}`,
+          target: "_blank",
+          className:"block mt-4 bg-green-500 text-white text-center py-2"
+        }, "Diskusi via WhatsApp"),
+
+        React.createElement("div", {className:"mt-4"},
+          React.createElement("input", {
+            placeholder:"Nama",
+            className:"border p-2 w-full mb-2"
+          }),
+          React.createElement("input", {
+            placeholder:"No HP",
+            className:"border p-2 w-full mb-2"
+          }),
+          React.createElement("button", {
+            className:"bg-black text-white w-full py-2"
+          }, "Minta Penawaran")
+        )
       )
     )
   );
@@ -96,7 +96,7 @@ function ComparePage() {
   const [type, setType] = useState("machine");
   const [selected, setSelected] = useState([]);
 
-  const tta= type === "machine" ? machines : grinders;
+  const data = type === "machine" ? machines : grinders;
 
   const toggle = (item) => {
     if (selected.includes(item)) {
@@ -134,8 +134,8 @@ function ComparePage() {
           ["brand","price","power","madeIn"].map(field =>
             React.createElement("tr", {key:field},
               React.createElement("td", {className:"border p-2"}, field),
-              ...selected.map(i =>
-                React.createElement("td", {className:"border p-2"}, i[field])
+              ...selected.map((i, idx) =>
+                React.createElement("td", {key:idx, className:"border p-2"}, i[field])
               )
             )
           )
@@ -144,7 +144,6 @@ function ComparePage() {
     )
   );
 }
-
 // MAIN APP
 function App() {
   const [page, setPage] = useState("recommendation");
