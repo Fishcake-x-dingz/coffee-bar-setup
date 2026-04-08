@@ -31,12 +31,35 @@ function RecommendationPage() {
   const [result, setResult] = useState(null);
 
   const generate = () => {
-    const machine = machines.find(m => m.price <= budget * 0.7);
-    const grinder = grinders.find(g => g.price <= budget * 0.3);
-    setResult({ machine, grinder });
-  };
+  // sort ascending (cheapest first)
+  const sortedMachines = [...machines].sort((a,b)=>a.price-b.price);
+  const sortedGrinders = [...grinders].sort((a,b)=>a.price-b.price);
+
+  let machine = sortedMachines.find(m => m.price <= budget * 0.7);
+  let grinder = sortedGrinders.find(g => g.price <= budget * 0.3);
+
+  let fallback = false;
+
+  // if no machine found → take cheapest as fallback
+  if (!machine) {
+    machine = sortedMachines[0];
+    fallback = true;
+  }
+
+  // if no grinder found → take cheapest as fallback
+  if (!grinder) {
+    grinder = sortedGrinders[0];
+    fallback = true;
+  }
+
+  setResult({ machine, grinder, fallback });
+};
 
   return (
+    result.fallback && React.createElement("p", {
+  className:"text-red-500 font-bold mb-2"
+}, "Maaf, tidak ada setup sesuai budget. Berikut opsi terdekat:")
+    
     React.createElement("div", {className:"p-6"},
       React.createElement("h1", {className:"text-xl font-bold"}, "Bar Setup Recommendation"),
 
