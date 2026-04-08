@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Coffee Setup</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+const { useState } = React;
+
+const machines = [
+  { name: "Jura E6", price: 15000000 },
+  { name: "Delonghi ECAM 350", price: 17000000 },
+  { name: "Kalerm X465", price: 12000000 }
+];
+
+const grinders = [
+  { name: "Mazzer Mini", price: 8000000 },
+  { name: "Eureka Mignon", price: 7000000 },
+  { name: "Baratza Sette", price: 6000000 }
+];
+
+function App() {
+  const [budget, setBudget] = useState(20000000);
+  const [result, setResult] = useState(null);
+
+  const generate = () => {
+    const machine = machines.find(m => m.price <= budget * 0.7);
+    const grinder = grinders.find(g => g.price <= budget * 0.3);
+    setResult({ machine, grinder });
+  };
+
+  return (
+    React.createElement("div", {className:"p-6"},
+      React.createElement("h1", {className:"text-xl font-bold"}, "Bar Setup Recommendation"),
+
+      React.createElement("input", {
+        type:"number",
+        placeholder:"Budget",
+        onChange:e=>setBudget(Number(e.target.value)),
+        className:"border p-2 mr-2"
+      }),
+
+      React.createElement("button", {
+        onClick:generate,
+        className:"bg-black text-white px-4 py-2"
+      }, "Generate"),
+
+      result && React.createElement("div", {className:"mt-4"},
+        React.createElement("p", null, "Machine: " + result.machine?.name),
+        React.createElement("p", null, "Grinder: " + result.grinder?.name)
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
