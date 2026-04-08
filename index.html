@@ -12,19 +12,21 @@
 <script>
 const { useState } = React;
 
+// DATA
 const machines = [
-  { name: "Jura E6", price: 15000000 },
-  { name: "Delonghi ECAM 350", price: 17000000 },
-  { name: "Kalerm X465", price: 12000000 }
+  { name: "Jura E6", brand:"Jura", price: 15000000, power:1450, madeIn:"Swiss" },
+  { name: "Delonghi ECAM 350", brand:"Delonghi", price: 17000000, power:1350, madeIn:"Italy" },
+  { name: "Kalerm X465", brand:"Kalerm", price: 12000000, power:1500, madeIn:"China" }
 ];
 
 const grinders = [
-  { name: "Mazzer Mini", price: 8000000 },
-  { name: "Eureka Mignon", price: 7000000 },
-  { name: "Baratza Sette", price: 6000000 }
+  { name: "Mazzer Mini", brand:"Mazzer", price: 8000000, power:350, madeIn:"Italy" },
+  { name: "Eureka Mignon", brand:"Eureka", price: 7000000, power:310, madeIn:"Italy" },
+  { name: "Baratza Sette", brand:"Baratza", price: 6000000, power:290, madeIn:"USA" }
 ];
 
-function App() {
+// PAGE 1
+function RecommendationPage() {
   const [budget, setBudget] = useState(20000000);
   const [result, setResult] = useState(null);
 
@@ -54,6 +56,78 @@ function App() {
         React.createElement("p", null, "Machine: " + result.machine?.name),
         React.createElement("p", null, "Grinder: " + result.grinder?.name)
       )
+    )
+  );
+}
+
+// PAGE 2
+function ComparePage() {
+  const [type, setType] = useState("machine");
+  const [selected, setSelected] = useState([]);
+
+  const data = type === "machine" ? machines : grinders;
+
+  const toggle = (item) => {
+    if (selected.includes(item)) {
+      setSelected(selected.filter(i => i !== item));
+    } else if (selected.length < 5) {
+      setSelected([...selected, item]);
+    }
+  };
+
+  return (
+    React.createElement("div", {className:"p-6"},
+      React.createElement("h1", {className:"text-xl font-bold"}, "Compare"),
+
+      React.createElement("select", {
+        onChange:e=>setType(e.target.value),
+        className:"border p-2 mb-4"
+      },
+        React.createElement("option", {value:"machine"}, "Coffee Machine"),
+        React.createElement("option", {value:"grinder"}, "Grinder")
+      ),
+
+      data.map(item =>
+        React.createElement("div", {key:item.name, className:"border p-2 mb-2"},
+          item.name,
+          React.createElement("button", {
+            onClick:()=>toggle(item),
+            className:"ml-2 bg-gray-200 px-2"
+          }, "Select")
+        )
+      ),
+
+      selected.length > 0 &&
+      React.createElement("table", {className:"mt-4 border"},
+        React.createElement("tbody", null,
+          ["brand","price","power","madeIn"].map(field =>
+            React.createElement("tr", {key:field},
+              React.createElement("td", {className:"border p-2"}, field),
+              ...selected.map(i =>
+                React.createElement("td", {className:"border p-2"}, i[field])
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// MAIN APP
+function App() {
+  const [page, setPage] = useState("recommendation");
+
+  return (
+    React.createElement("div", null,
+      React.createElement("div", {className:"p-4 bg-gray-100"},
+        React.createElement("button", {onClick:()=>setPage("recommendation")}, "Recommendation"),
+        React.createElement("button", {onClick:()=>setPage("compare"), className:"ml-2"}, "Compare")
+      ),
+
+      page === "recommendation"
+        ? React.createElement(RecommendationPage)
+        : React.createElement(ComparePage)
     )
   );
 }
