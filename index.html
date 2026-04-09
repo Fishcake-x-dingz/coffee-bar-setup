@@ -31,7 +31,7 @@ React.useEffect(() => {
 }, []);
 
 // PAGE 1
-function RecommendationPage() {
+function RecommendationPage({ machines, grinders }) {
   const [budget, setBudget] = useState(20000000);
   const [result, setResult] = useState(null);
 
@@ -113,7 +113,7 @@ let grinder = [...grinders]
 }
   
 // PAGE 2
-function ComparePage() {
+function ComparePage({ machines, grinders }) {
   const [type, setType] = useState("machine");
   const [selected, setSelected] = useState([]);
 
@@ -170,20 +170,37 @@ function ComparePage() {
 function App() {
   const [page, setPage] = useState("recommendation");
 
+  const [machines, setMachines] = useState([]);
+  const [grinders, setGrinders] = useState([]);
+
+  // ✅ FETCH DATA HERE
+  React.useEffect(() => {
+    fetch("https://script.google.com/macros/s/AKfycbwt1UcSPjISrDQnCuDXDzMKt_kplTr2RDf_PE3hkqufn2a266vgwMeIX4SdAr--Lk3vyw/exec")
+      .then(res => res.json())
+      .then(data => {
+        const m = data.filter(i => i.type === "machine");
+        const g = data.filter(i => i.type === "grinder");
+
+        setMachines(m);
+        setGrinders(g);
+      })
+      .catch(err => console.error("Fetch error:", err));
+  }, []);
+
   return (
     React.createElement("div", null,
+
       React.createElement("div", {className:"p-4 bg-gray-100"},
         React.createElement("button", {onClick:()=>setPage("recommendation")}, "Recommendation"),
         React.createElement("button", {onClick:()=>setPage("compare"), className:"ml-2"}, "Compare")
       ),
 
       page === "recommendation"
-        ? React.createElement(RecommendationPage)
-        : React.createElement(ComparePage)
+        ? React.createElement(RecommendationPage, { machines, grinders })
+        : React.createElement(ComparePage, { machines, grinders })
     )
   );
 }
-
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
 </body>
