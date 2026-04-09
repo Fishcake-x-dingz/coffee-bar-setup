@@ -35,8 +35,13 @@ function RecommendationPage() {
   const sortedMachines = [...machines].sort((a,b)=>a.price-b.price);
   const sortedGrinders = [...grinders].sort((a,b)=>a.price-b.price);
 
-  let machine = sortedMachines.find(m => m.price <= budget * 0.7);
-  let grinder = sortedGrinders.find(g => g.price <= budget * 0.3);
+let machine = [...machines]
+  .filter(m => m.price <= budget * 0.7)
+  .sort((a,b)=>b.price-a.price)[0];
+
+let grinder = [...grinders]
+  .filter(g => g.price <= budget * 0.3)
+  .sort((a,b)=>b.price-a.price)[0];
 
   let fallback = false;
 
