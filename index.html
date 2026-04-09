@@ -19,7 +19,7 @@ const [machines, setMachines] = useState([]);
 const [grinders, setGrinders] = useState([]);
 
 React.useEffect(() => {
-  fetch(https://script.google.com/macros/s/AKfycbwt1UcSPjISrDQnCuDXDzMKt_kplTr2RDf_PE3hkqufn2a266vgwMeIX4SdAr--Lk3vyw/exec)
+  fetch("https://script.google.com/macros/s/AKfycbwt1UcSPjISrDQnCuDXDzMKt_kplTr2RDf_PE3hkqufn2a266vgwMeIX4SdAr--Lk3vyw/exec")
     .then(res => res.json())
     .then(data => {
       const m = data.filter(i => i.type === "machine");
