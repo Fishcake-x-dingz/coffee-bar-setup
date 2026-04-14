@@ -2,103 +2,166 @@
 <html>
 <head>
   <title>DoseClose</title>
+
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <link rel="icon" type="image/png" href="logo.png">
 </head>
-<body>
+
+<body class="bg-[#f5f5f5]">
 <div id="root"></div>
 
 <script src="data.js"></script>
 
 <script>
-const { useState } = React;
-  
-// PAGE 1
-function RecommendationPage({ machines, grinders }) {
-  const [budget, setBudget] = useState(20000000);
-  const [result, setResult] = useState(null);
+const { useState, useEffect } = React;
 
-  const generate = () => {
-  // sort ascending (cheapest first)
-  const sortedMachines = [...machines].sort((a,b)=>a.price-b.price);
-  const sortedGrinders = [...grinders].sort((a,b)=>a.price-b.price);
-
-let machine = [...machines]
-  .filter(m => m.price <= budget * 0.7)
-  .sort((a,b)=>b.price-a.price)[0];
-
-let grinder = [...grinders]
-  .filter(g => g.price <= budget * 0.3)
-  .sort((a,b)=>b.price-a.price)[0];
-
-  let fallback = false;
-
-  // if no machine found → take cheapest as fallback
-  if (!machine) {
-    machine = sortedMachines[0];
-    fallback = true;
-  }
-
-  // if no grinder found → take cheapest as fallback
-  if (!grinder) {
-    grinder = sortedGrinders[0];
-    fallback = true;
-  }
-
-  setResult({ machine, grinder, fallback });
-};
-
+/* =========================
+   HOMEPAGE HERO
+========================= */
+function Home({ goToRecommend, goToCompare }) {
   return (
-  React.createElement("div", {className:"p-6"},
+    React.createElement("div", { className: "text-center p-10" },
 
-    React.createElement("h1", {className:"text-xl font-bold"}, "Insert Your Budget"),
+      React.createElement("img", {
+        src: "logo.png",
+        className: "mx-auto w-72 mb-6"
+      }),
 
-    React.createElement("input", {
-      type:"number",
-      placeholder:"Budget",
-      onChange:e=>setBudget(Number(e.target.value)),
-      className:"border p-2 mr-2"
-    }),
+      React.createElement("div", { className: "flex justify-center gap-6 mb-10" },
 
-    React.createElement("button", {
-      onClick:generate,
-      className:"bg-black text-white px-4 py-2"
-    }, "Generate"),
+        React.createElement("button", {
+          onClick: goToRecommend,
+          className: "bg-black text-white px-6 py-3 rounded-xl text-lg font-semibold"
+        }, "Recommend Me!"),
 
-    // ✅ SHOW MESSAGE HERE
-    result?.fallback && React.createElement("p", {
-      className:"text-red-500 font-bold mt-4"
-    }, "Maaf, tidak ada setup sesuai budget. Berikut opsi terdekat:"),
-
-    result && React.createElement("div", {className:"mt-4 border p-4"},
-
-      React.createElement("p", {className:"font-bold"}, "Recommended Setup"),
-
-      React.createElement("p", null, "Machine: " + result.machine?.name),
-      React.createElement("p", null, "Grinder: " + result.grinder?.name),
-
-      React.createElement("div", {className:"mt-4 text-sm text-gray-600"},
-        "✔ Sesuai budget",
-        React.createElement("br"),
-        "✔ Cocok untuk penggunaan umum",
-        React.createElement("br"),
-        "✔ Value terbaik di range ini"
+        React.createElement("button", {
+          onClick: goToCompare,
+          className: "bg-black text-white px-6 py-3 rounded-xl text-lg font-semibold"
+        }, "Let’s Compare!")
       ),
 
-      React.createElement("a", {
-        href: `https://wa.me/6285282704370?text=Halo, saya dapat rekomendasi:%0AMachine: ${result.machine?.name}%0AGrinder: ${result.grinder?.name}%0ABudget: ${budget}`,
-        target: "_blank",
-        className:"block mt-4 bg-green-500 text-white text-center py-2"
-      }, "Diskusi via WhatsApp")
+      React.createElement("div", {
+        className: "bg-[#b8a999] text-black rounded-2xl p-10 max-w-3xl mx-auto"
+      },
+        "Find your perfect coffee setup without confusion. Just input your budget and let us do the thinking."
+      )
     )
-  )
-);
+  );
 }
-  
-// PAGE 2
+
+/* =========================
+   RECOMMENDATION PAGE
+========================= */
+function RecommendationPage({ machines, grinders }) {
+
+  const [budget, setBudget] = useState(20000000);
+  const [machinePct, setMachinePct] = useState(70);
+  const [grinderPct, setGrinderPct] = useState(30);
+  const [result, setResult] = useState(null);
+
+  // sync sliders
+  const updateMachine = (val) => {
+    setMachinePct(val);
+    setGrinderPct(100 - val);
+  };
+
+  const updateGrinder = (val) => {
+    setGrinderPct(val);
+    setMachinePct(100 - val);
+  };
+
+  const generate = () => {
+
+    let machine = machines
+      .filter(m => m.price <= budget * (machinePct/100))
+      .sort((a,b)=>b.price-a.price)[0];
+
+    let grinder = grinders
+      .filter(g => g.price <= budget * (grinderPct/100))
+      .sort((a,b)=>b.price-a.price)[0];
+
+    if (!machine) machine = machines.sort((a,b)=>a.price-b.price)[0];
+    if (!grinder) grinder = grinders.sort((a,b)=>a.price-b.price)[0];
+
+    setResult({ machine, grinder });
+  };
+
+  return (
+    React.createElement("div", { className: "p-10 max-w-3xl mx-auto" },
+
+      React.createElement("button", {
+        onClick: ()=>location.reload(),
+        className:"mb-6 text-sm underline"
+      }, "← Back"),
+
+      React.createElement("h2", { className:"text-xl font-semibold mb-4" }, "Insert your budget"),
+
+      React.createElement("div", { className:"flex items-center mb-6" },
+        React.createElement("span", { className:"bg-[#b8a999] px-3 py-2" }, "Rp"),
+        React.createElement("input", {
+          type:"number",
+          value: budget,
+          onChange:e=>setBudget(Number(e.target.value)),
+          className:"w-full p-2"
+        })
+      ),
+
+      React.createElement("div", { className:"mb-6" },
+        React.createElement("p", {className:"mb-2 font-semibold"}, "Coffee Machine ({machinePct}%)"),
+        React.createElement("input", {
+          type:"range",
+          min:0,
+          max:100,
+          value:machinePct,
+          onChange:e=>updateMachine(Number(e.target.value)),
+          className:"w-full"
+        })
+      ),
+
+      React.createElement("div", { className:"mb-6" },
+        React.createElement("p", {className:"mb-2 font-semibold"}, "Grinder ({grinderPct}%)"),
+        React.createElement("input", {
+          type:"range",
+          min:0,
+          max:100,
+          value:grinderPct,
+          onChange:e=>updateGrinder(Number(e.target.value)),
+          className:"w-full"
+        })
+      ),
+
+      React.createElement("button", {
+        onClick:generate,
+        className:"bg-black text-white px-6 py-3 rounded-xl w-full"
+      }, "Generate Recommendation"),
+
+      result && React.createElement("div", {
+        className:"mt-8 bg-white p-6 rounded-2xl shadow"
+      },
+
+        React.createElement("h3", {className:"font-bold mb-4"}, "Your Setup"),
+
+        React.createElement("p", null, "Machine: " + result.machine?.name),
+        React.createElement("p", null, "Grinder: " + result.grinder?.name),
+
+        React.createElement("a", {
+          href:`https://wa.me/6285282704370?text=Machine:${result.machine?.name}%0AGrinder:${result.grinder?.name}`,
+          target:"_blank",
+          className:"block mt-4 bg-green-500 text-white text-center py-2 rounded"
+        }, "Discuss via WhatsApp")
+      )
+    )
+  );
+}
+
+/* =========================
+   COMPARE PAGE
+========================= */
 function ComparePage({ machines, grinders }) {
+
   const [type, setType] = useState("machine");
   const [selected, setSelected] = useState([]);
 
@@ -107,87 +170,100 @@ function ComparePage({ machines, grinders }) {
   const toggle = (item) => {
     if (selected.includes(item)) {
       setSelected(selected.filter(i => i !== item));
-    } else if (selected.length < 5) {
+    } else if (selected.length < 2) {
       setSelected([...selected, item]);
     }
   };
 
   return (
-    React.createElement("div", {className:"p-6"},
-      React.createElement("h1", {className:"text-xl font-bold"}, "Compare"),
+    React.createElement("div", { className:"p-10 max-w-5xl mx-auto" },
+
+      React.createElement("button", {
+        onClick: ()=>location.reload(),
+        className:"mb-6 text-sm underline"
+      }, "← Back"),
+
+      React.createElement("h2", { className:"text-xl font-bold mb-4" }, "Compare"),
 
       React.createElement("select", {
         onChange:e=>setType(e.target.value),
-        className:"border p-2 mb-4"
+        className:"p-2 mb-6 border"
       },
-        React.createElement("option", {value:"machine"}, "Coffee Machine"),
-        React.createElement("option", {value:"grinder"}, "Grinder")
+        React.createElement("option",{value:"machine"},"Coffee Machine"),
+        React.createElement("option",{value:"grinder"},"Grinder")
       ),
 
       data.map(item =>
-        React.createElement("div", {key:item.name, className:"border p-2 mb-2"},
+        React.createElement("div", {
+          key:item.name,
+          className:"bg-white p-3 mb-2 flex justify-between rounded shadow"
+        },
           item.name,
           React.createElement("button", {
             onClick:()=>toggle(item),
-            className:"ml-2 bg-gray-200 px-2"
+            className:"bg-black text-white px-3 py-1 rounded"
           }, "Select")
         )
       ),
 
-      selected.length > 0 &&
-      React.createElement("table", {className:"mt-4 border"},
-        React.createElement("tbody", null,
-          ["brand","price","power","madeIn"].map(field =>
-            React.createElement("tr", {key:field},
-              React.createElement("td", {className:"border p-2"}, field),
-              ...selected.map((i, idx) =>
-                React.createElement("td", {key:idx, className:"border p-2"}, i[field])
-              )
-            )
+      selected.length === 2 &&
+      React.createElement("div", { className:"grid grid-cols-2 gap-6 mt-10" },
+
+        selected.map((item, idx) =>
+          React.createElement("div", {
+            key:idx,
+            className:"bg-black text-white p-6 rounded-2xl"
+          },
+
+            React.createElement("h3", {className:"mb-4 font-bold"},
+              idx === 0 ? "Option A" : "Option B"
+            ),
+
+            React.createElement("p", null, item.name),
+            React.createElement("p", null, "Price: " + item.price),
+            React.createElement("p", null, "Power: " + item.power),
+            React.createElement("p", null, "Made In: " + item.madeIn)
           )
         )
       )
     )
   );
 }
-  
-// MAIN APP
-function App() {
-  const [page, setPage] = useState("recommendation");
 
+/* =========================
+   MAIN APP
+========================= */
+function App() {
+
+  const [page, setPage] = useState("home");
   const [machines, setMachines] = useState([]);
   const [grinders, setGrinders] = useState([]);
 
-  // ✅ FETCH DATA HERE
-  React.useEffect(() => {
+  useEffect(() => {
     fetch("https://script.google.com/macros/s/AKfycbwt1UcSPjISrDQnCuDXDzMKt_kplTr2RDf_PE3hkqufn2a266vgwMeIX4SdAr--Lk3vyw/exec")
       .then(res => res.json())
       .then(data => {
-        const m = data.filter(i => i.type === "machine");
-        const g = data.filter(i => i.type === "grinder");
-
-        setMachines(m);
-        setGrinders(g);
-      })
-      .catch(err => console.error("Fetch error:", err));
+        setMachines(data.filter(i=>i.type==="machine"));
+        setGrinders(data.filter(i=>i.type==="grinder"));
+      });
   }, []);
 
-  return (
-    React.createElement("div", null,
+  if (page === "home") {
+    return React.createElement(Home, {
+      goToRecommend: ()=>setPage("recommend"),
+      goToCompare: ()=>setPage("compare")
+    });
+  }
 
-      React.createElement("div", {className:"p-4 bg-gray-100"},
-        React.createElement("button", {onClick:()=>setPage("recommendation")}, "Recommendation"),
-        React.createElement("button", {onClick:()=>setPage("compare"), className:"ml-2"}, "Compare")
-      ),
+  if (page === "recommend") {
+    return React.createElement(RecommendationPage, { machines, grinders });
+  }
 
-      page === "recommendation"
-        ? React.createElement(RecommendationPage, { machines, grinders })
-        : React.createElement(ComparePage, { machines, grinders })
-    )
-  );
+  return React.createElement(ComparePage, { machines, grinders });
 }
-  
-  ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
+
 </body>
 </html>
