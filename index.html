@@ -163,73 +163,116 @@ function RecommendationPage({ machines, grinders }) {
 function ComparePage({ machines, grinders }) {
 
   const [type, setType] = useState("machine");
-  const [selected, setSelected] = useState([]);
+  const [itemA, setItemA] = useState(null);
+  const [itemB, setItemB] = useState(null);
+  const [showResult, setShowResult] = useState(false);
 
   const data = type === "machine" ? machines : grinders;
 
-  const toggle = (item) => {
-    if (selected.includes(item)) {
-      setSelected(selected.filter(i => i !== item));
-    } else if (selected.length < 2) {
-      setSelected([...selected, item]);
+  const handleCompare = () => {
+    if (itemA && itemB) {
+      setShowResult(true);
     }
   };
 
   return (
     React.createElement("div", { className:"p-10 max-w-5xl mx-auto" },
 
+      // BACK
       React.createElement("button", {
         onClick: ()=>location.reload(),
         className:"mb-6 text-sm underline"
       }, "← Back"),
 
-      React.createElement("h2", { className:"text-xl font-bold mb-4" }, "Compare"),
+      React.createElement("h2", { className:"text-xl font-bold mb-6" }, "Let’s Compare"),
 
+      // TYPE SELECT
       React.createElement("select", {
-        onChange:e=>setType(e.target.value),
-        className:"p-2 mb-6 border"
+        onChange:e=>{
+          setType(e.target.value);
+          setItemA(null);
+          setItemB(null);
+          setShowResult(false);
+        },
+        className:"p-2 mb-6 border w-full"
       },
         React.createElement("option",{value:"machine"},"Coffee Machine"),
         React.createElement("option",{value:"grinder"},"Grinder")
       ),
 
-      data.map(item =>
-        React.createElement("div", {
-          key:item.name,
-          className:"bg-white p-3 mb-2 flex justify-between rounded shadow"
+      // DROPDOWN A
+      React.createElement("div", { className:"mb-4" },
+        React.createElement("p", {className:"mb-1"}, "Select Option A"),
+        React.createElement("select", {
+          onChange:e=>{
+            const selectedItem = data.find(d => d.name === e.target.value);
+            setItemA(selectedItem);
+          },
+          className:"p-2 border w-full"
         },
-          item.name,
-          React.createElement("button", {
-            onClick:()=>toggle(item),
-            className:"bg-black text-white px-3 py-1 rounded"
-          }, "Select")
+          React.createElement("option", null, "-- Choose Product --"),
+          data.map(item =>
+            React.createElement("option", { key:item.name }, item.name)
+          )
         )
       ),
 
-      selected.length === 2 &&
+      // DROPDOWN B
+      React.createElement("div", { className:"mb-6" },
+        React.createElement("p", {className:"mb-1"}, "Select Option B"),
+        React.createElement("select", {
+          onChange:e=>{
+            const selectedItem = data.find(d => d.name === e.target.value);
+            setItemB(selectedItem);
+          },
+          className:"p-2 border w-full"
+        },
+          React.createElement("option", null, "-- Choose Product --"),
+          data.map(item =>
+            React.createElement("option", { key:item.name }, item.name)
+          )
+        )
+      ),
+
+      // BUTTON
+      React.createElement("button", {
+        onClick:handleCompare,
+        className:"bg-black text-white px-6 py-3 rounded-xl w-full"
+      }, "Compare"),
+
+      // RESULT
+      showResult && itemA && itemB &&
       React.createElement("div", { className:"grid grid-cols-2 gap-6 mt-10" },
 
-        selected.map((item, idx) =>
-          React.createElement("div", {
-            key:idx,
-            className:"bg-black text-white p-6 rounded-2xl"
-          },
+        // OPTION A
+        React.createElement("div", {
+          className:"bg-black text-white p-6 rounded-2xl"
+        },
+          React.createElement("h3", {className:"font-bold mb-4"}, "Option A"),
 
-            React.createElement("h3", {className:"mb-4 font-bold"},
-              idx === 0 ? "Option A" : "Option B"
-            ),
+          React.createElement("p", null, "Brand: " + itemA.brand),
+          React.createElement("p", null, "Name: " + itemA.name),
+          React.createElement("p", null, "Price: " + itemA.price),
+          React.createElement("p", null, "Power: " + itemA.power),
+          React.createElement("p", null, "Made In: " + itemA.madeIn)
+        ),
 
-            React.createElement("p", null, item.name),
-            React.createElement("p", null, "Price: " + item.price),
-            React.createElement("p", null, "Power: " + item.power),
-            React.createElement("p", null, "Made In: " + item.madeIn)
-          )
+        // OPTION B
+        React.createElement("div", {
+          className:"bg-black text-white p-6 rounded-2xl"
+        },
+          React.createElement("h3", {className:"font-bold mb-4"}, "Option B"),
+
+          React.createElement("p", null, "Brand: " + itemB.brand),
+          React.createElement("p", null, "Name: " + itemB.name),
+          React.createElement("p", null, "Price: " + itemB.price),
+          React.createElement("p", null, "Power: " + itemB.power),
+          React.createElement("p", null, "Made In: " + itemB.madeIn)
         )
       )
     )
   );
 }
-
 /* =========================
    MAIN APP
 ========================= */
