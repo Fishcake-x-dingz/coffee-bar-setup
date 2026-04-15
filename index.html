@@ -19,328 +19,183 @@
 const { useState, useEffect } = React;
 
 /* =========================
-   FORMAT HELPER
+   HELPERS
 ========================= */
-const formatNumber = (num) => {
-  if (!num) return "";
-  return num.toLocaleString("en-US"); // force comma
-};
+const formatNumber = (num) =>
+  num ? num.toLocaleString("en-US") : "";
 
-const parseNumber = (val) => {
-  return Number(val.replace(/[^0-9]/g, "")) || 0;
-};
+const parseNumber = (val) =>
+  Number(val.replace(/[^0-9]/g, "")) || 0;
 
 /* =========================
-   HOMEPAGE
+   HOME
 ========================= */
 function Home({ goToRecommend, goToCompare }) {
-  return (
-    React.createElement("div", { className: "text-center p-10" },
+  return React.createElement("div", { className: "text-center p-10" },
 
-      React.createElement("img", {
-        src: "logo.png",
-        className: "mx-auto w-72 mb-6"
-      }),
+    React.createElement("img", {
+      src: "logo.png",
+      className: "mx-auto w-72 mb-6"
+    }),
 
-      React.createElement("div", { className: "flex justify-center gap-6 mb-10" },
+    React.createElement("div", { className: "flex justify-center gap-6 mb-10" },
 
-        React.createElement("button", {
-          onClick: goToRecommend,
-          className: "bg-black text-white px-6 py-3 rounded-xl text-lg font-semibold"
-        }, "Recommend Me!"),
+      React.createElement("button", {
+        onClick: goToRecommend,
+        className: "bg-black text-white px-6 py-3 rounded-xl"
+      }, "Recommend Me!"),
 
-        React.createElement("button", {
-          onClick: goToCompare,
-          className: "bg-black text-white px-6 py-3 rounded-xl text-lg font-semibold"
-        }, "Let’s Compare!")
-      ),
-
-      React.createElement("div", {
-        className: "bg-[#b8a999] text-black rounded-2xl p-10 max-w-3xl mx-auto"
-      },
-        "Find your perfect coffee setup without confusion. Just input your budget and let us do the thinking."
-      )
+      React.createElement("button", {
+        onClick: goToCompare,
+        className: "bg-black text-white px-6 py-3 rounded-xl"
+      }, "Let’s Compare!")
     )
   );
 }
 
 /* =========================
-   RECOMMENDATION PAGE
+   RECOMMENDATION
 ========================= */
 function RecommendationPage({ machines, grinders }) {
 
   const [budgetInput, setBudgetInput] = useState("");
   const [budget, setBudget] = useState(0);
-
   const [machinePct, setMachinePct] = useState(70);
   const [grinderPct, setGrinderPct] = useState(30);
-
   const [result, setResult] = useState(null);
 
-  const updateMachine = (val) => {
-    setMachinePct(val);
-    setGrinderPct(100 - val);
+  const handleBudgetChange = (val) => {
+    const num = parseNumber(val);
+    setBudget(num);
+    setBudgetInput(val === "" ? "" : formatNumber(num));
   };
-
-  const updateGrinder = (val) => {
-    setGrinderPct(val);
-    setMachinePct(100 - val);
-  };
-
-const handleBudgetChange = (val) => {
-  // allow raw typing first
-  const raw = val;
-
-  // convert to clean number
-  const numeric = parseNumber(raw);
-
-  setBudget(numeric);
-
-  // format nicely
-  if (raw === "") {
-    setBudgetInput("");
-  } else {
-    setBudgetInput(formatNumber(numeric));
-  }
-};
 
   const generate = () => {
 
-  if (!budget) {
-    alert("Please insert your budget");
-    return;
-  }
-
-  const machineBudget = budget * (machinePct/100);
-  const grinderBudget = budget * (grinderPct/100);
-
-  let machine = null;
-  let grinder = null;
-
-  // ✅ MACHINE LOGIC
-  if (machinePct > 0) {
-    machine = machines
-      .filter(m => m.price <= machineBudget)
-      .sort((a,b)=>b.price-a.price)[0];
-
-    if (!machine) {
-      machine = [...machines].sort((a,b)=>a.price-b.price)[0];
-    }
-  }
-
-  // ✅ GRINDER LOGIC
-  if (grinderPct > 0) {
-    grinder = grinders
-      .filter(g => g.price <= grinderBudget)
-      .sort((a,b)=>b.price-a.price)[0];
-
-    if (!grinder) {
-      grinder = [...grinders].sort((a,b)=>a.price-b.price)[0];
-    }
-  }
-
-  let message = "";
-  let remaining = 0;
-
-  // ✅ CALCULATE TOTAL USED
-  const totalUsed =
-    (machine ? machine.price : 0) +
-    (grinder ? grinder.price : 0);
-
-  // ❌ NOT ENOUGH BUDGET
-  if (totalUsed > budget) {
-    const diff = totalUsed - budget;
-    message = `Sorry, there's no suitable setup within the budget for now. Add Rp ${formatNumber(diff)} more to get this recommended setup.`;
-  } else {
-    remaining = budget - totalUsed;
-  }
-
-  setResult({ machine, grinder, message, remaining });
-};
-
-  return (
-    React.createElement("div", { className: "p-10 max-w-3xl mx-auto" },
-
-      React.createElement("button", {
-        onClick: ()=>location.reload(),
-        className:"mb-6 text-sm underline"
-      }, "← Back"),
-
-      React.createElement("h2", { className:"text-xl font-semibold mb-4" }, "Insert your budget"),
-
-      React.createElement("div", { className:"flex items-center mb-6" },
-        React.createElement("span", { className:"bg-[#b8a999] px-3 py-2" }, "Rp"),
-        React.createElement("input", {
-  type:"text",
-  value: budgetInput,
-  placeholder:"Insert your budget",
-  onChange:e=>handleBudgetChange(e.target.value),
-  className:"w-full p-2 placeholder:opacity-50"
-})
-      ),
-
-      React.createElement("div", { className:"mb-6" },
-        React.createElement("p", {className:"mb-2 font-semibold"},
-          `Coffee Machine (${machinePct}%)`
-        ),
-        React.createElement("input", {
-          type:"range",
-          min:0,
-          max:100,
-          value:machinePct,
-          onChange:e=>updateMachine(Number(e.target.value)),
-          className:"w-full"
-        })
-      ),
-
-      React.createElement("div", { className:"mb-6" },
-        React.createElement("p", {className:"mb-2 font-semibold"},
-          `Grinder (${grinderPct}%)`
-        ),
-        React.createElement("input", {
-          type:"range",
-          min:0,
-          max:100,
-          value:grinderPct,
-          onChange:e=>updateGrinder(Number(e.target.value)),
-          className:"w-full"
-        })
-      ),
-
-      React.createElement("button", {
-        onClick:generate,
-        className:"bg-black text-white px-6 py-3 rounded-xl w-full"
-      }, "Generate Recommendation"),
-
-      result?.message &&
-      React.createElement("p", {
-        className:"text-red-500 font-semibold mt-4"
-      }, result.message),
-
-      result && React.createElement("div", {
-        className:"mt-8 bg-white p-6 rounded-2xl shadow"
-      },
-
-        React.createElement("h3", {className:"font-bold mb-4"}, "Your Setup"),
-
-        React.createElement("p", null,
-  "Machine: " + (result.machine ? result.machine.name : "-")
-)
-
-React.createElement("p", null,
-  "Grinder: " + (result.grinder ? result.grinder.name : "-")
-)
-
-        result.remaining > 0 &&
-        React.createElement("p", {
-          className:"mt-2 text-green-600"
-        }, `You still got Rp ${formatNumber(result.remaining)} left`),
-
-        React.createElement("a", {
-          href:`https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine.name}%0AGrinder: ${result.grinder.name}`,
-          target:"_blank",
-          className:"block mt-4 bg-green-500 text-white text-center py-2 rounded"
-        }, "Discuss via WhatsApp")
-      )
-    )
-  );
-}
-
-/* =========================
-   COMPARE PAGE (unchanged)
-========================= */
-function ComparePage({ machines, grinders }) {
-
-  const [type, setType] = useState("machine");
-  const [itemA, setItemA] = useState(null);
-  const [itemB, setItemB] = useState(null);
-  const [showResult, setShowResult] = useState(false);
-
-  const data = type === "machine" ? machines : grinders;
-
-  const handleCompare = () => {
-    if (!itemA || !itemB) {
-      alert("Please select both products first");
+    if (!budget) {
+      alert("Insert your budget");
       return;
     }
-    setShowResult(true);
+
+    let machine = null;
+    let grinder = null;
+
+    if (machinePct > 0) {
+      machine = machines
+        .filter(m => m.price <= budget * (machinePct/100))
+        .sort((a,b)=>b.price-a.price)[0];
+    }
+
+    if (grinderPct > 0) {
+      grinder = grinders
+        .filter(g => g.price <= budget * (grinderPct/100))
+        .sort((a,b)=>b.price-a.price)[0];
+    }
+
+    // fallback to cheapest IF NOTHING FOUND
+    if (!machine && machinePct > 0) {
+      machine = [...machines].sort((a,b)=>a.price-b.price)[0];
+    }
+
+    if (!grinder && grinderPct > 0) {
+      grinder = [...grinders].sort((a,b)=>a.price-b.price)[0];
+    }
+
+    const totalUsed =
+      (machine?.price || 0) +
+      (grinder?.price || 0);
+
+    let message = "";
+    let remaining = 0;
+
+    if (totalUsed > budget) {
+      const diff = totalUsed - budget;
+      message = `Add Rp ${formatNumber(diff)} more to get this setup`;
+    } else {
+      remaining = budget - totalUsed;
+    }
+
+    setResult({ machine, grinder, message, remaining });
   };
 
-  return (
-    React.createElement("div", { className:"p-10 max-w-5xl mx-auto" },
+  return React.createElement("div", { className: "p-10 max-w-3xl mx-auto" },
 
-      React.createElement("button", {
-        onClick: ()=>location.reload(),
-        className:"mb-6 text-sm underline"
-      }, "← Back"),
+    React.createElement("button", {
+      onClick: ()=>location.reload(),
+      className:"mb-6 underline"
+    }, "← Back"),
 
-      React.createElement("h2", { className:"text-xl font-bold mb-6" }, "Let’s Compare"),
+    React.createElement("div", { className:"flex mb-6" },
+      React.createElement("span", { className:"bg-[#b8a999] px-3 py-2" }, "Rp"),
+      React.createElement("input", {
+        type:"text",
+        value: budgetInput,
+        placeholder:"Insert your budget",
+        onChange:e=>handleBudgetChange(e.target.value),
+        className:"w-full p-2"
+      })
+    ),
 
-      React.createElement("select", {
-        onChange:e=>{
-          setType(e.target.value);
-          setItemA(null);
-          setItemB(null);
-          setShowResult(false);
-        },
-        className:"p-2 mb-6 border w-full"
-      },
-        React.createElement("option",{value:"machine"},"Coffee Machine"),
-        React.createElement("option",{value:"grinder"},"Grinder")
+    React.createElement("p", null, `Machine (${machinePct}%)`),
+    React.createElement("input", {
+      type:"range",
+      min:0,
+      max:100,
+      value:machinePct,
+      onChange:e=>{
+        setMachinePct(Number(e.target.value));
+        setGrinderPct(100 - Number(e.target.value));
+      }
+    }),
+
+    React.createElement("p", null, `Grinder (${grinderPct}%)`),
+    React.createElement("input", {
+      type:"range",
+      min:0,
+      max:100,
+      value:grinderPct,
+      onChange:e=>{
+        setGrinderPct(Number(e.target.value));
+        setMachinePct(100 - Number(e.target.value));
+      }
+    }),
+
+    React.createElement("button", {
+      onClick:generate,
+      className:"bg-black text-white w-full mt-4 py-2"
+    }, "Generate"),
+
+    result && React.createElement("div", { className:"mt-6 p-4 bg-white rounded" },
+
+      result.message &&
+      React.createElement("p", { className:"text-red-500" }, result.message),
+
+      React.createElement("p", null,
+        "Machine: " + (result.machine?.name || "-")
       ),
 
-      ["A","B"].map((label, idx)=>
-        React.createElement("div",{className:"mb-4"},
-          React.createElement("p", null, `Select Option ${label}`),
-          React.createElement("select",{
-            onChange:e=>{
-              const selected = data.find(d=>d.name===e.target.value);
-              idx===0 ? setItemA(selected) : setItemB(selected);
-            },
-            className:"p-2 border w-full"
-          },
-            React.createElement("option", null, "-- Choose Product --"),
-            data.map(item =>
-              React.createElement("option",{key:item.name},item.name)
-            )
-          )
-        )
+      React.createElement("p", null,
+        "Grinder: " + (result.grinder?.name || "-")
       ),
 
-      React.createElement("button", {
-        onClick:handleCompare,
-        className:"bg-black text-white px-6 py-3 rounded-xl w-full"
-      }, "Compare"),
+      result.remaining > 0 &&
+      React.createElement("p", { className:"text-green-600" },
+        `Remaining: Rp ${formatNumber(result.remaining)}`
+      ),
 
-      showResult &&
-      React.createElement("div", { className:"grid grid-cols-2 gap-6 mt-10" },
-
-        [itemA,itemB].map((item,idx)=>
-          React.createElement("div",{
-            className:"bg-black text-white p-6 rounded-2xl"
-          },
-
-            React.createElement("h3",{className:"font-bold mb-4"},
-              idx===0?"Option A":"Option B"
-            ),
-
-            React.createElement("p",null,"Brand: "+item.brand),
-            React.createElement("p",null,"Name: "+item.name),
-            React.createElement("p",null,"Price: Rp "+formatNumber(item.price)),
-            React.createElement("p",null,"Power: "+formatNumber(item.power)+" W"),
-            React.createElement("p",null,"Made In: "+item.madeIn)
-          )
-        )
-      )
+      React.createElement("a", {
+        href:`https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine?.name || "-"}%0AGrinder: ${result.grinder?.name || "-"}`,
+        target:"_blank",
+        className:"block mt-4 bg-green-500 text-white text-center py-2"
+      }, "WhatsApp")
     )
   );
 }
 
 /* =========================
-   MAIN APP
+   MAIN
 ========================= */
 function App() {
-
   const [page, setPage] = useState("home");
   const [machines, setMachines] = useState([]);
   const [grinders, setGrinders] = useState([]);
@@ -361,11 +216,7 @@ function App() {
     });
   }
 
-  if (page === "recommend") {
-    return React.createElement(RecommendationPage, { machines, grinders });
-  }
-
-  return React.createElement(ComparePage, { machines, grinders });
+  return React.createElement(RecommendationPage, { machines, grinders });
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
