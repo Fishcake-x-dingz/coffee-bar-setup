@@ -106,58 +106,49 @@ const handleBudgetChange = (val) => {
 
   const generate = () => {
 
-  if (!budget) {
-    alert("Please insert your budget");
-    return;
-  }
+    if (!budget) {
+      alert("Please insert your budget");
+      return;
+    }
 
-  const machineBudget = budget * (machinePct/100);
-  const grinderBudget = budget * (grinderPct/100);
+    const machineBudget = budget * (machinePct/100);
+    const grinderBudget = budget * (grinderPct/100);
 
-  let machine = null;
-  let grinder = null;
-
-  // ✅ MACHINE LOGIC
-  if (machinePct > 0) {
-    machine = machines
+    let machine = machines
       .filter(m => m.price <= machineBudget)
       .sort((a,b)=>b.price-a.price)[0];
 
-    if (!machine) {
-      machine = [...machines].sort((a,b)=>a.price-b.price)[0];
-    }
-  }
-
-  // ✅ GRINDER LOGIC
-  if (grinderPct > 0) {
-    grinder = grinders
+    let grinder = grinders
       .filter(g => g.price <= grinderBudget)
       .sort((a,b)=>b.price-a.price)[0];
 
-    if (!grinder) {
-      grinder = [...grinders].sort((a,b)=>a.price-b.price)[0];
+    let message = "";
+    let remaining = 0;
+
+    if (!machine || !grinder) {
+
+      const cheapestMachine = [...machines].sort((a,b)=>a.price-b.price)[0];
+      const cheapestGrinder = [...grinders].sort((a,b)=>a.price-b.price)[0];
+
+      const totalNeeded = cheapestMachine.price + cheapestGrinder.price;
+
+      if (budget < totalNeeded) {
+        const diff = totalNeeded - budget;
+
+        message = `Sorry, there's no suitable setup within the budget for now. Add Rp ${formatNumber(diff)} more to get this recommended setup.`;
+      }
+
+      machine = cheapestMachine;
+      grinder = cheapestGrinder;
+
+    } else {
+      const totalUsed = machine.price + grinder.price;
+      remaining = budget - totalUsed;
     }
-  }
 
-  let message = "";
-  let remaining = 0;
+    setResult({ machine, grinder, message, remaining });
+  };
 
-  // ✅ CALCULATE TOTAL USED
-  const totalUsed =
-    (machine ? machine.price : 0) +
-    (grinder ? grinder.price : 0);
-
-  // ❌ NOT ENOUGH BUDGET
-  if (totalUsed > budget) {
-    const diff = totalUsed - budget;
-    message = `Sorry, there's no suitable setup within the budget for now. Add Rp ${formatNumber(diff)} more to get this recommended setup.`;
-  } else {
-    remaining = budget - totalUsed;
-  }
-
-  setResult({ machine, grinder, message, remaining });
-};
-  
   return (
     React.createElement("div", { className: "p-10 max-w-3xl mx-auto" },
 
