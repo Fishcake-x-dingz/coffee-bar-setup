@@ -19,6 +19,18 @@
 const { useState, useEffect } = React;
 
 /* =========================
+   FORMAT HELPER
+========================= */
+const formatNumber = (num) => {
+  if (!num) return "";
+  return num.toLocaleString("id-ID");
+};
+
+const parseNumber = (val) => {
+  return Number(val.replace(/,/g, "")) || 0;
+};
+
+/* =========================
    HOMEPAGE
 ========================= */
 function Home({ goToRecommend, goToCompare }) {
@@ -57,9 +69,12 @@ function Home({ goToRecommend, goToCompare }) {
 ========================= */
 function RecommendationPage({ machines, grinders }) {
 
-  const [budget, setBudget] = useState(20000000);
+  const [budgetInput, setBudgetInput] = useState("");
+  const [budget, setBudget] = useState(0);
+
   const [machinePct, setMachinePct] = useState(70);
   const [grinderPct, setGrinderPct] = useState(30);
+
   const [result, setResult] = useState(null);
 
   const updateMachine = (val) => {
@@ -72,10 +87,21 @@ function RecommendationPage({ machines, grinders }) {
     setMachinePct(100 - val);
   };
 
+  const handleBudgetChange = (val) => {
+    const numeric = parseNumber(val);
+    setBudget(numeric);
+    setBudgetInput(formatNumber(numeric));
+  };
+
   const generate = () => {
 
-    let machineBudget = budget * (machinePct/100);
-    let grinderBudget = budget * (grinderPct/100);
+    if (!budget) {
+      alert("Please insert your budget");
+      return;
+    }
+
+    const machineBudget = budget * (machinePct/100);
+    const grinderBudget = budget * (grinderPct/100);
 
     let machine = machines
       .filter(m => m.price <= machineBudget)
@@ -86,21 +112,30 @@ function RecommendationPage({ machines, grinders }) {
       .sort((a,b)=>b.price-a.price)[0];
 
     let message = "";
+    let remaining = 0;
 
-    if (!machine) {
+    if (!machine || !grinder) {
+
       const cheapestMachine = [...machines].sort((a,b)=>a.price-b.price)[0];
-      let additional = cheapestMachine.price - machineBudget;
+      const cheapestGrinder = [...grinders].sort((a,b)=>a.price-b.price)[0];
+
+      const totalNeeded = cheapestMachine.price + cheapestGrinder.price;
+
+      if (budget < totalNeeded) {
+        const diff = totalNeeded - budget;
+
+        message = `Sorry, there's no suitable setup within the budget for now. Add Rp ${formatNumber(diff)} more to get this recommended setup.`;
+      }
 
       machine = cheapestMachine;
+      grinder = cheapestGrinder;
 
-      message = `Sorry, there's no suitable setup within the budget for now. Add Rp ${additional.toLocaleString("id-ID")} more to get this recommended setup.`;
+    } else {
+      const totalUsed = machine.price + grinder.price;
+      remaining = budget - totalUsed;
     }
 
-    if (!grinder) {
-      grinder = [...grinders].sort((a,b)=>a.price-b.price)[0];
-    }
-
-    setResult({ machine, grinder, message });
+    setResult({ machine, grinder, message, remaining });
   };
 
   return (
@@ -116,10 +151,10 @@ function RecommendationPage({ machines, grinders }) {
       React.createElement("div", { className:"flex items-center mb-6" },
         React.createElement("span", { className:"bg-[#b8a999] px-3 py-2" }, "Rp"),
         React.createElement("input", {
-          type:"number",
-          value: budget === 0 ? "" : budget,
+          type:"text",
+          value: budgetInput,
           placeholder:"Insert your budget",
-          onChange:e=>setBudget(Number(e.target.value) || 0),
+          onChange:e=>handleBudgetChange(e.target.value),
           className:"w-full p-2 placeholder:opacity-50"
         })
       ),
@@ -169,17 +204,22 @@ function RecommendationPage({ machines, grinders }) {
         React.createElement("h3", {className:"font-bold mb-4"}, "Your Setup"),
 
         React.createElement("p", null,
-          "Machine: " + result.machine?.name +
-          " (Rp " + result.machine.price.toLocaleString("id-ID") + ")"
+          "Machine: " + result.machine.name +
+          " (Rp " + formatNumber(result.machine.price) + ")"
         ),
 
         React.createElement("p", null,
-          "Grinder: " + result.grinder?.name +
-          " (Rp " + result.grinder.price.toLocaleString("id-ID") + ")"
+          "Grinder: " + result.grinder.name +
+          " (Rp " + formatNumber(result.grinder.price) + ")"
         ),
 
+        result.remaining > 0 &&
+        React.createElement("p", {
+          className:"mt-2 text-green-600"
+        }, `You still got Rp ${formatNumber(result.remaining)} left`),
+
         React.createElement("a", {
-          href:`https://wa.me/6285282704370?text=Machine:${result.machine?.name}%0AGrinder:${result.grinder?.name}`,
+          href:`https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine.name}%0AGrinder: ${result.grinder.name}`,
           target:"_blank",
           className:"block mt-4 bg-green-500 text-white text-center py-2 rounded"
         }, "Discuss via WhatsApp")
@@ -189,7 +229,7 @@ function RecommendationPage({ machines, grinders }) {
 }
 
 /* =========================
-   COMPARE PAGE
+   COMPARE PAGE (unchanged)
 ========================= */
 function ComparePage({ machines, grinders }) {
 
@@ -231,32 +271,20 @@ function ComparePage({ machines, grinders }) {
         React.createElement("option",{value:"grinder"},"Grinder")
       ),
 
-      React.createElement("div", { className:"mb-4" },
-        React.createElement("p", null, "Select Option A"),
-        React.createElement("select", {
-          onChange:e=>{
-            setItemA(data.find(d=>d.name===e.target.value));
+      ["A","B"].map((label, idx)=>
+        React.createElement("div",{className:"mb-4"},
+          React.createElement("p", null, `Select Option ${label}`),
+          React.createElement("select",{
+            onChange:e=>{
+              const selected = data.find(d=>d.name===e.target.value);
+              idx===0 ? setItemA(selected) : setItemB(selected);
+            },
+            className:"p-2 border w-full"
           },
-          className:"p-2 border w-full"
-        },
-          React.createElement("option", null, "-- Choose Product --"),
-          data.map(item =>
-            React.createElement("option", {key:item.name}, item.name)
-          )
-        )
-      ),
-
-      React.createElement("div", { className:"mb-6" },
-        React.createElement("p", null, "Select Option B"),
-        React.createElement("select", {
-          onChange:e=>{
-            setItemB(data.find(d=>d.name===e.target.value));
-          },
-          className:"p-2 border w-full"
-        },
-          React.createElement("option", null, "-- Choose Product --"),
-          data.map(item =>
-            React.createElement("option", {key:item.name}, item.name)
+            React.createElement("option", null, "-- Choose Product --"),
+            data.map(item =>
+              React.createElement("option",{key:item.name},item.name)
+            )
           )
         )
       ),
@@ -269,25 +297,20 @@ function ComparePage({ machines, grinders }) {
       showResult &&
       React.createElement("div", { className:"grid grid-cols-2 gap-6 mt-10" },
 
-        [itemA, itemB].map((item, idx) =>
-          React.createElement("div", {
-            key:idx,
+        [itemA,itemB].map((item,idx)=>
+          React.createElement("div",{
             className:"bg-black text-white p-6 rounded-2xl"
           },
 
-            React.createElement("h3", {className:"font-bold mb-4"},
-              idx===0 ? "Option A" : "Option B"
+            React.createElement("h3",{className:"font-bold mb-4"},
+              idx===0?"Option A":"Option B"
             ),
 
-            React.createElement("p", null, "Brand: " + item.brand),
-            React.createElement("p", null, "Name: " + item.name),
-            React.createElement("p", null,
-              "Price: Rp " + item.price.toLocaleString("id-ID")
-            ),
-            React.createElement("p", null,
-              "Power: " + Number(item.power).toLocaleString("id-ID") + " W"
-            ),
-            React.createElement("p", null, "Made In: " + item.madeIn)
+            React.createElement("p",null,"Brand: "+item.brand),
+            React.createElement("p",null,"Name: "+item.name),
+            React.createElement("p",null,"Price: Rp "+formatNumber(item.price)),
+            React.createElement("p",null,"Power: "+formatNumber(item.power)+" W"),
+            React.createElement("p",null,"Made In: "+item.madeIn)
           )
         )
       )
