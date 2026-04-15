@@ -23,11 +23,11 @@ const { useState, useEffect } = React;
 ========================= */
 const formatNumber = (num) => {
   if (!num) return "";
-  return num.toLocaleString("id-ID");
+  return num.toLocaleString("en-US"); // force comma
 };
 
 const parseNumber = (val) => {
-  return Number(val.replace(/,/g, "")) || 0;
+  return Number(val.replace(/[^0-9]/g, "")) || 0;
 };
 
 /* =========================
@@ -87,11 +87,22 @@ function RecommendationPage({ machines, grinders }) {
     setMachinePct(100 - val);
   };
 
-  const handleBudgetChange = (val) => {
-    const numeric = parseNumber(val);
-    setBudget(numeric);
+const handleBudgetChange = (val) => {
+  // allow raw typing first
+  const raw = val;
+
+  // convert to clean number
+  const numeric = parseNumber(raw);
+
+  setBudget(numeric);
+
+  // format nicely
+  if (raw === "") {
+    setBudgetInput("");
+  } else {
     setBudgetInput(formatNumber(numeric));
-  };
+  }
+};
 
   const generate = () => {
 
@@ -151,12 +162,12 @@ function RecommendationPage({ machines, grinders }) {
       React.createElement("div", { className:"flex items-center mb-6" },
         React.createElement("span", { className:"bg-[#b8a999] px-3 py-2" }, "Rp"),
         React.createElement("input", {
-          type:"text",
-          value: budgetInput,
-          placeholder:"Insert your budget",
-          onChange:e=>handleBudgetChange(e.target.value),
-          className:"w-full p-2 placeholder:opacity-50"
-        })
+  type:"text",
+  value: budgetInput,
+  placeholder:"Insert your budget",
+  onChange:e=>handleBudgetChange(e.target.value),
+  className:"w-full p-2 placeholder:opacity-50"
+})
       ),
 
       React.createElement("div", { className:"mb-6" },
