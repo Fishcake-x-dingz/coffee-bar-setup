@@ -285,36 +285,42 @@ function ComparePage({ machines, grinders, goBack }) {
     ),
 
     // OPTION A
-    React.createElement("div",{className:"mb-4"},
-      React.createElement("p",null,"Select Option A"),
-      React.createElement("select",{
-        className:"w-full p-2 border",
-        onChange:e=>{
-          setItemA(data.find(d=>d.name===e.target.value));
-        }
-      },
-        React.createElement("option",null,"-- Choose Product --"),
-        data.map(item =>
-          React.createElement("option",{key:item.name},item.name)
-        )
-      )
-    ),
+    React.createElement("select",{
+  className:"w-full p-2 border",
+  value: itemA?.name || "",
+  onChange:e=>{
+    const selected = data.find(d=>d.name===e.target.value);
+    setItemA(selected);
+  }
+},
+  React.createElement("option",{value:""},"-- Choose Product --"),
+  data.map(item =>
+    React.createElement("option",{
+      key:item.name,
+      value:item.name,
+      disabled: itemB && item.name === itemB.name
+    }, item.name)
+  )
+),
 
     // OPTION B
-    React.createElement("div",{className:"mb-6"},
-      React.createElement("p",null,"Select Option B"),
-      React.createElement("select",{
-        className:"w-full p-2 border",
-        onChange:e=>{
-          setItemB(data.find(d=>d.name===e.target.value));
-        }
-      },
-        React.createElement("option",null,"-- Choose Product --"),
-        data.map(item =>
-          React.createElement("option",{key:item.name},item.name)
-        )
-      )
-    ),
+    React.createElement("select",{
+  className:"w-full p-2 border",
+  value: itemB?.name || "",
+  onChange:e=>{
+    const selected = data.find(d=>d.name===e.target.value);
+    setItemB(selected);
+  }
+},
+  React.createElement("option",{value:""},"-- Choose Product --"),
+  data.map(item =>
+    React.createElement("option",{
+      key:item.name,
+      value:item.name,
+      disabled: itemA && item.name === itemA.name
+    }, item.name)
+  )
+),
 
     // BUTTON
     React.createElement("button",{
