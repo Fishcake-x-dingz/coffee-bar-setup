@@ -1,19 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DoseClose</title>
 
-  <!-- Production builds (smaller & faster) -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <link rel="icon" type="image/png" href="logo.png">
 </head>
 
-<body class="bg-[#f5f5f5]">
+<body class="bg-[#eef1f3]">
 <div id="root"></div>
 
 <script src="data.js"></script>
@@ -22,378 +19,254 @@
 const { useState, useEffect } = React;
 
 /* =========================
-   FORMAT HELPERS
+   HELPERS
 ========================= */
-const formatNumber = (num) => {
-  if (!num) return "";
-  return num.toLocaleString("en-US");
-};
-
-const parseNumber = (val) => {
-  return Number(val.replace(/[^0-9]/g, "")) || 0;
-};
+const formatNumber = (num) => num ? num.toLocaleString("en-US") : "";
+const parseNumber = (val) => Number(val.replace(/[^0-9]/g, "")) || 0;
 
 /* =========================
-   RECOMMENDATION LOGIC
-   (extracted out of component)
-========================= */
-function getRecommendation(machines, grinders, budget, machinePct) {
-  const grinderPct = 100 - machinePct;
-  const machineBudget = budget * (machinePct / 100);
-  const grinderBudget = budget * (grinderPct / 100);
-
-  let machine = machines
-    .filter(m => m.price <= machineBudget)
-    .sort((a, b) => b.price - a.price)[0];
-
-  let grinder = grinders
-    .filter(g => g.price <= grinderBudget)
-    .sort((a, b) => b.price - a.price)[0];
-
-  let message = "";
-  let remaining = 0;
-
-  if (!machine || !grinder) {
-    const cheapestMachine = [...machines].sort((a, b) => a.price - b.price)[0];
-    const cheapestGrinder = [...grinders].sort((a, b) => a.price - b.price)[0];
-    const totalNeeded = cheapestMachine.price + cheapestGrinder.price;
-
-    if (budget < totalNeeded) {
-      const diff = totalNeeded - budget;
-      message = `Sorry, there's no suitable setup within the budget for now. Add Rp ${formatNumber(diff)} more to get this recommended setup.`;
-    }
-
-    machine = cheapestMachine;
-    grinder = cheapestGrinder;
-  } else {
-    remaining = budget - (machine.price + grinder.price);
-  }
-
-  return { machine, grinder, message, remaining };
-}
-
-/* =========================
-   HOMEPAGE
+   HOMEPAGE (FIXED UI)
 ========================= */
 function Home({ goToRecommend, goToCompare }) {
-  return (
-    React.createElement("div", { className: "text-center p-10" },
+  return React.createElement("div", { className: "text-center" },
 
+    // LOGO
+    React.createElement("div", { className: "py-10" },
       React.createElement("img", {
         src: "logo.png",
-        className: "mx-auto w-72 mb-6",
-        alt: "DoseClose logo"
-      }),
+        className: "mx-auto w-[420px]"
+      })
+    ),
 
-      React.createElement("div", { className: "flex justify-center gap-6 mb-10" },
-
-        React.createElement("button", {
-          onClick: goToRecommend,
-          className: "bg-black text-white px-6 py-3 rounded-xl text-lg font-semibold"
-        }, "Recommend Me!"),
-
-        React.createElement("button", {
-          onClick: goToCompare,
-          className: "bg-black text-white px-6 py-3 rounded-xl text-lg font-semibold"
-        }, "Let's Compare!")
-      ),
-
-      React.createElement("div", {
-        className: "bg-[#b8a999] text-black rounded-2xl p-10 max-w-3xl mx-auto"
-      },
-        "Find your perfect coffee setup without confusion. Just input your budget and let us do the thinking."
+    // COPY BOX
+    React.createElement("div", {
+      className: "bg-[#b8a999] rounded-3xl py-20 px-10 max-w-4xl mx-auto mb-10"
+    },
+      React.createElement("p", { className:"text-lg" },
+        "Find your perfect coffee setup without confusion. Just input your budget and let us guide you."
       )
+    ),
+
+    // BUTTONS
+    React.createElement("div", { className: "flex justify-center gap-20 pb-20" },
+
+      React.createElement("button", {
+        onClick: goToRecommend,
+        className: "bg-black text-white px-10 py-4 rounded-2xl text-lg font-semibold"
+      }, "Recommend Me!"),
+
+      React.createElement("button", {
+        onClick: goToCompare,
+        className: "bg-black text-white px-10 py-4 rounded-2xl text-lg font-semibold"
+      }, "Let’s Compare!")
     )
   );
 }
 
 /* =========================
-   RECOMMENDATION PAGE
+   RECOMMENDATION PAGE (FIXED LOGIC)
 ========================= */
-function RecommendationPage({ machines, grinders, goBack }) {
+function RecommendationPage({ machines, grinders }) {
 
   const [budgetInput, setBudgetInput] = useState("");
   const [budget, setBudget] = useState(0);
   const [machinePct, setMachinePct] = useState(70);
+  const [grinderPct, setGrinderPct] = useState(30);
   const [result, setResult] = useState(null);
-  const [budgetError, setBudgetError] = useState("");
-
-  // Derive grinder % from machine % — always adds up to 100
-  const grinderPct = 100 - machinePct;
 
   const handleBudgetChange = (val) => {
-    const numeric = parseNumber(val);
-    setBudget(numeric);
-    setBudgetError("");
-    if (val === "") {
-      setBudgetInput("");
-    } else {
-      setBudgetInput(formatNumber(numeric));
-    }
+    const num = parseNumber(val);
+    setBudget(num);
+    setBudgetInput(val === "" ? "" : formatNumber(num));
+  };
+
+  const getBestItem = (items, maxBudget) => {
+    return items
+      .filter(i => i.price <= maxBudget)
+      .sort((a,b)=>b.price-a.price)[0] || null;
+  };
+
+  const getCheapest = (items) => {
+    return [...items].sort((a,b)=>a.price-b.price)[0];
   };
 
   const generate = () => {
+
     if (!budget) {
-      setBudgetError("Please insert your budget before generating.");
+      alert("Please insert your budget");
       return;
     }
-    const recommendation = getRecommendation(machines, grinders, budget, machinePct);
-    setResult(recommendation);
+
+    let machine = null;
+    let grinder = null;
+
+    // ======================
+    // MACHINE
+    // ======================
+    if (machinePct > 0) {
+      const machineBudget = budget * (machinePct/100);
+      machine = getBestItem(machines, machineBudget);
+    }
+
+    // ======================
+    // GRINDER
+    // ======================
+    if (grinderPct > 0) {
+      const grinderBudget = budget * (grinderPct/100);
+      grinder = getBestItem(grinders, grinderBudget);
+    }
+
+    // ======================
+    // IF BOTH EXIST → CHECK TOTAL
+    // ======================
+    let message = "";
+    let remaining = 0;
+
+    let totalUsed =
+      (machine?.price || 0) +
+      (grinder?.price || 0);
+
+    // ❌ CASE: NOTHING MATCHES IN SPLIT
+    if ((machinePct > 0 && !machine) || (grinderPct > 0 && !grinder)) {
+
+      // Try global best combination
+      let bestMachine = getBestItem(machines, budget);
+      let bestGrinder = getBestItem(grinders, budget);
+
+      if (!bestMachine) bestMachine = getCheapest(machines);
+      if (!bestGrinder) bestGrinder = getCheapest(grinders);
+
+      const minSetup = getCheapest(machines).price + getCheapest(grinders).price;
+
+      if (budget < minSetup) {
+        const diff = minSetup - budget;
+        message = `Sorry, there's no suitable setup within the budget. Add Rp ${formatNumber(diff)} more to get started.`;
+      }
+
+      machine = machinePct > 0 ? bestMachine : null;
+      grinder = grinderPct > 0 ? bestGrinder : null;
+
+      totalUsed =
+        (machine?.price || 0) +
+        (grinder?.price || 0);
+    }
+
+    // ✅ REMAINING
+    if (totalUsed <= budget) {
+      remaining = budget - totalUsed;
+    } else {
+      const diff = totalUsed - budget;
+      message = `Add Rp ${formatNumber(diff)} more to get this setup`;
+    }
+
+    setResult({ machine, grinder, message, remaining });
   };
 
-  return (
-    React.createElement("div", { className: "p-10 max-w-3xl mx-auto" },
+  return React.createElement("div", { className: "p-10 max-w-3xl mx-auto" },
 
-      React.createElement("button", {
-        onClick: goBack,
-        className: "mb-6 text-sm underline"
-      }, "← Back"),
+    React.createElement("button", {
+      onClick: ()=>location.reload(),
+      className:"mb-6 underline"
+    }, "← Back"),
 
-      React.createElement("h2", { className: "text-xl font-semibold mb-4" }, "Insert your budget"),
+    // BUDGET INPUT
+    React.createElement("div", { className:"flex mb-6" },
+      React.createElement("span", { className:"bg-[#b8a999] px-3 py-2" }, "Rp"),
+      React.createElement("input", {
+        type:"text",
+        value: budgetInput,
+        placeholder:"Insert your budget",
+        onChange:e=>handleBudgetChange(e.target.value),
+        className:"w-full p-2"
+      })
+    ),
 
-      React.createElement("div", { className: "flex items-center mb-1" },
-        React.createElement("span", { className: "bg-[#b8a999] px-3 py-2" }, "Rp"),
-        React.createElement("input", {
-          type: "text",
-          value: budgetInput,
-          placeholder: "Insert your budget",
-          onChange: e => handleBudgetChange(e.target.value),
-          className: "w-full p-2 placeholder:opacity-50"
-        })
+    // SLIDER
+    React.createElement("p", null, `Machine (${machinePct}%)`),
+    React.createElement("input", {
+      type:"range",
+      min:0,
+      max:100,
+      value:machinePct,
+      onChange:e=>{
+        const val = Number(e.target.value);
+        setMachinePct(val);
+        setGrinderPct(100 - val);
+      }
+    }),
+
+    React.createElement("p", null, `Grinder (${grinderPct}%)`),
+    React.createElement("input", {
+      type:"range",
+      min:0,
+      max:100,
+      value:grinderPct,
+      onChange:e=>{
+        const val = Number(e.target.value);
+        setGrinderPct(val);
+        setMachinePct(100 - val);
+      }
+    }),
+
+    React.createElement("button", {
+      onClick:generate,
+      className:"bg-black text-white w-full mt-4 py-3 rounded-xl"
+    }, "Generate Recommendation"),
+
+    // RESULT
+    result && React.createElement("div", { className:"mt-6 p-6 bg-white rounded-2xl shadow" },
+
+      result.message &&
+      React.createElement("p", { className:"text-red-500 mb-3" }, result.message),
+
+      React.createElement("p", null,
+        "Machine: " + (result.machine ? result.machine.name : "Not required for your setup")
       ),
 
-      // Inline budget error (replaces alert)
-      budgetError &&
-      React.createElement("p", { className: "text-red-500 text-sm mb-4" }, budgetError),
-
-      !budgetError &&
-      React.createElement("div", { className: "mb-6" }),
-
-      React.createElement("div", { className: "mb-6" },
-        React.createElement("p", { className: "mb-2 font-semibold" },
-          `Coffee Machine (${machinePct}%)`
-        ),
-        React.createElement("input", {
-          type: "range",
-          min: 0,
-          max: 100,
-          step: 1,
-          value: machinePct,
-          onChange: e => setMachinePct(Number(e.target.value)),
-          className: "w-full"
-        })
+      React.createElement("p", null,
+        "Grinder: " + (result.grinder ? result.grinder.name : "Not required for your setup")
       ),
 
-      React.createElement("div", { className: "mb-6" },
-        React.createElement("p", { className: "mb-2 font-semibold" },
-          `Grinder (${grinderPct}%)`
-        ),
-        React.createElement("input", {
-          type: "range",
-          min: 0,
-          max: 100,
-          step: 1,
-          value: grinderPct,
-          onChange: e => setMachinePct(100 - Number(e.target.value)),
-          className: "w-full"
-        })
+      result.remaining > 0 &&
+      React.createElement("p", { className:"text-green-600 mt-2" },
+        `You still have Rp ${formatNumber(result.remaining)} remaining`
       ),
 
-      React.createElement("button", {
-        onClick: generate,
-        className: "bg-black text-white px-6 py-3 rounded-xl w-full"
-      }, "Generate Recommendation"),
-
-      result && result.message &&
-      React.createElement("p", {
-        className: "text-red-500 font-semibold mt-4"
-      }, result.message),
-
-      result &&
-      React.createElement("div", {
-        className: "mt-8 bg-white p-6 rounded-2xl shadow"
-      },
-
-        React.createElement("h3", { className: "font-bold mb-4" }, "Your Setup"),
-
-        React.createElement("p", null,
-          "Machine: " + result.machine.name +
-          " (Rp " + formatNumber(result.machine.price) + ")"
-        ),
-
-        React.createElement("p", null,
-          "Grinder: " + result.grinder.name +
-          " (Rp " + formatNumber(result.grinder.price) + ")"
-        ),
-
-        result.remaining > 0 &&
-        React.createElement("p", { className: "mt-2 text-green-600" },
-          `You still got Rp ${formatNumber(result.remaining)} left`
-        ),
-
-        React.createElement("a", {
-          href: `https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine.name}%0AGrinder: ${result.grinder.name}`,
-          target: "_blank",
-          rel: "noopener noreferrer",
-          className: "block mt-4 bg-green-500 text-white text-center py-2 rounded"
-        }, "Discuss via WhatsApp")
-      )
+      React.createElement("a", {
+        href:`https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine?.name || "-"}%0AGrinder: ${result.grinder?.name || "-"}`,
+        target:"_blank",
+        className:"block mt-4 bg-green-500 text-white text-center py-2 rounded"
+      }, "Discuss via WhatsApp")
     )
   );
 }
 
 /* =========================
-   COMPARE PAGE
-========================= */
-function ComparePage({ machines, grinders, goBack }) {
-
-  const [type, setType] = useState("machine");
-  const [itemA, setItemA] = useState(null);
-  const [itemB, setItemB] = useState(null);
-  const [showResult, setShowResult] = useState(false);
-  const [compareError, setCompareError] = useState("");
-
-  const data = type === "machine" ? machines : grinders;
-
-  const handleCompare = () => {
-    if (!itemA || !itemB) {
-      setCompareError("Please select both products before comparing.");
-      return;
-    }
-    setCompareError("");
-    setShowResult(true);
-  };
-
-  return (
-    React.createElement("div", { className: "p-10 max-w-5xl mx-auto" },
-
-      React.createElement("button", {
-        onClick: goBack,
-        className: "mb-6 text-sm underline"
-      }, "← Back"),
-
-      React.createElement("h2", { className: "text-xl font-bold mb-6" }, "Let's Compare"),
-
-      React.createElement("select", {
-        onChange: e => {
-          setType(e.target.value);
-          setItemA(null);
-          setItemB(null);
-          setShowResult(false);
-          setCompareError("");
-        },
-        className: "p-2 mb-6 border w-full"
-      },
-        React.createElement("option", { value: "machine" }, "Coffee Machine"),
-        React.createElement("option", { value: "grinder" }, "Grinder")
-      ),
-
-      ["A", "B"].map((label, idx) =>
-        React.createElement("div", { key: label, className: "mb-4" },
-          React.createElement("p", null, `Select Option ${label}`),
-          React.createElement("select", {
-            onChange: e => {
-              const selected = data.find(d => d.name === e.target.value);
-              setCompareError("");
-              idx === 0 ? setItemA(selected) : setItemB(selected);
-            },
-            className: "p-2 border w-full"
-          },
-            React.createElement("option", null, "-- Choose Product --"),
-            data.map(item =>
-              React.createElement("option", { key: item.name }, item.name)
-            )
-          )
-        )
-      ),
-
-      // Inline compare error (replaces alert)
-      compareError &&
-      React.createElement("p", { className: "text-red-500 text-sm mb-4" }, compareError),
-
-      React.createElement("button", {
-        onClick: handleCompare,
-        className: "bg-black text-white px-6 py-3 rounded-xl w-full"
-      }, "Compare"),
-
-      showResult &&
-      React.createElement("div", { className: "grid grid-cols-2 gap-6 mt-10" },
-
-        [itemA, itemB].map((item, idx) =>
-          React.createElement("div", {
-            key: idx === 0 ? "optionA" : "optionB",
-            className: "bg-black text-white p-6 rounded-2xl"
-          },
-
-            React.createElement("h3", { className: "font-bold mb-4" },
-              idx === 0 ? "Option A" : "Option B"
-            ),
-
-            React.createElement("p", null, "Brand: " + item.brand),
-            React.createElement("p", null, "Name: " + item.name),
-            React.createElement("p", null, "Price: Rp " + formatNumber(item.price)),
-            React.createElement("p", null, "Power: " + formatNumber(item.power) + " W"),
-            React.createElement("p", null, "Made In: " + item.madeIn)
-          )
-        )
-      )
-    )
-  );
-}
-
-/* =========================
-   MAIN APP
+   APP
 ========================= */
 function App() {
 
   const [page, setPage] = useState("home");
   const [machines, setMachines] = useState([]);
   const [grinders, setGrinders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState("");
 
   useEffect(() => {
     fetch("https://script.google.com/macros/s/AKfycbwt1UcSPjISrDQnCuDXDzMKt_kplTr2RDf_PE3hkqufn2a266vgwMeIX4SdAr--Lk3vyw/exec")
       .then(res => res.json())
       .then(data => {
-        setMachines(data.filter(i => i.type === "machine"));
-        setGrinders(data.filter(i => i.type === "grinder"));
-        setIsLoading(false);
-      })
-      .catch(() => {
-        setFetchError("Failed to load product data. Please refresh the page.");
-        setIsLoading(false);
+        setMachines(data.filter(i=>i.type==="machine"));
+        setGrinders(data.filter(i=>i.type==="grinder"));
       });
   }, []);
 
-  // Loading screen
-  if (isLoading) {
-    return React.createElement("div", { className: "text-center p-20 text-gray-500" },
-      "Loading products..."
-    );
-  }
-
-  // Error screen
-  if (fetchError) {
-    return React.createElement("div", { className: "text-center p-20 text-red-500" },
-      fetchError
-    );
-  }
-
-  const goBack = () => setPage("home");
-
   if (page === "home") {
     return React.createElement(Home, {
-      goToRecommend: () => setPage("recommend"),
-      goToCompare: () => setPage("compare")
+      goToRecommend: ()=>setPage("recommend"),
+      goToCompare: ()=>alert("Compare page next step")
     });
   }
 
-  if (page === "recommend") {
-    return React.createElement(RecommendationPage, { machines, grinders, goBack });
-  }
-
-  return React.createElement(ComparePage, { machines, grinders, goBack });
+  return React.createElement(RecommendationPage, { machines, grinders });
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
