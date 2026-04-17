@@ -241,6 +241,112 @@ function RecommendationPage({ machines, grinders }) {
   );
 }
 
+function ComparePage({ machines, grinders, goBack }) {
+
+  const [type, setType] = useState("machine");
+  const [itemA, setItemA] = useState(null);
+  const [itemB, setItemB] = useState(null);
+  const [show, setShow] = useState(false);
+
+  const data = type === "machine" ? machines : grinders;
+
+  const handleCompare = () => {
+    if (!itemA || !itemB) {
+      alert("Please select both products");
+      return;
+    }
+    setShow(true);
+  };
+
+  return React.createElement("div", { className:"p-10 max-w-5xl mx-auto" },
+
+    React.createElement("button", {
+      onClick: goBack,
+      className:"mb-6 underline"
+    }, "← Back"),
+
+    React.createElement("h2", {
+      className:"text-xl font-bold mb-6"
+    }, "Compare Products"),
+
+    // TYPE SELECT
+    React.createElement("select", {
+      value:type,
+      onChange:e=>{
+        setType(e.target.value);
+        setItemA(null);
+        setItemB(null);
+        setShow(false);
+      },
+      className:"w-full p-2 border mb-6"
+    },
+      React.createElement("option",{value:"machine"},"Coffee Machine"),
+      React.createElement("option",{value:"grinder"},"Grinder")
+    ),
+
+    // OPTION A
+    React.createElement("div",{className:"mb-4"},
+      React.createElement("p",null,"Select Option A"),
+      React.createElement("select",{
+        className:"w-full p-2 border",
+        onChange:e=>{
+          setItemA(data.find(d=>d.name===e.target.value));
+        }
+      },
+        React.createElement("option",null,"-- Choose Product --"),
+        data.map(item =>
+          React.createElement("option",{key:item.name},item.name)
+        )
+      )
+    ),
+
+    // OPTION B
+    React.createElement("div",{className:"mb-6"},
+      React.createElement("p",null,"Select Option B"),
+      React.createElement("select",{
+        className:"w-full p-2 border",
+        onChange:e=>{
+          setItemB(data.find(d=>d.name===e.target.value));
+        }
+      },
+        React.createElement("option",null,"-- Choose Product --"),
+        data.map(item =>
+          React.createElement("option",{key:item.name},item.name)
+        )
+      )
+    ),
+
+    // BUTTON
+    React.createElement("button",{
+      onClick:handleCompare,
+      className:"bg-black text-white w-full py-3 rounded-xl"
+    },"Compare"),
+
+    // RESULT
+    show &&
+    React.createElement("div",{className:"grid grid-cols-2 gap-6 mt-10"},
+
+      [itemA, itemB].map((item,idx)=>
+        React.createElement("div",{
+          key:idx,
+          className:"bg-black text-white p-6 rounded-2xl"
+        },
+
+          React.createElement("h3",{className:"mb-4 font-bold"},
+            idx===0 ? "Option A" : "Option B"
+          ),
+
+          React.createElement("p",null,"Brand: "+item.brand),
+          React.createElement("p",null,"Name: "+item.name),
+          React.createElement("p",null,"Price: Rp "+formatNumber(item.price)),
+          React.createElement("p",null,"Power: "+formatNumber(item.power)+" W"),
+          React.createElement("p",null,"Made In: "+item.madeIn)
+        )
+      )
+    )
+  );
+}
+  
 /* =========================
    APP
 ========================= */
@@ -262,13 +368,26 @@ function App() {
   if (page === "home") {
     return React.createElement(Home, {
       goToRecommend: ()=>setPage("recommend"),
-      goToCompare: ()=>alert("Compare page next step")
+      goToCompare: ()=>setPage("compare")
     });
   }
 
-  return React.createElement(RecommendationPage, { machines, grinders });
-}
+  if (page === "recommend") {
+    return React.createElement(RecommendationPage, {
+      machines,
+      grinders
+    });
+  }
 
+  if (page === "compare") {
+    return React.createElement(ComparePage, {
+      machines,
+      grinders,
+      goBack: ()=>setPage("home")
+    });
+  }
+}
+  
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
 
