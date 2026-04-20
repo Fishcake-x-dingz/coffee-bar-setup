@@ -8,6 +8,11 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    body { margin: 0; padding: 0; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
 </head>
 
 <body class="bg-[#eef1f3]">
@@ -25,16 +30,17 @@ const formatNumber = (num) => num ? num.toLocaleString("en-US") : "";
 const parseNumber = (val) => Number(val.replace(/[^0-9]/g, "")) || 0;
 
 /* =========================
-   HOMEPAGE (FIXED UI)
+   HOMEPAGE
 ========================= */
-function Home({ goToRecommend, goToCompare }) {
-  return React.createElement("div", { className: "text-center" },
+function Home({ goToRecommend, goToCompare, goToBrowse }) {
+  return React.createElement("div", { className: "text-center fade-in" },
 
     // LOGO
     React.createElement("div", { className: "py-10" },
       React.createElement("img", {
         src: "logo.png",
-        className: "mx-auto w-[420px]"
+        className: "mx-auto w-[420px]",
+        style: { maxWidth: "90%", height: "auto" }
       })
     ),
 
@@ -42,29 +48,34 @@ function Home({ goToRecommend, goToCompare }) {
     React.createElement("div", {
       className: "bg-[#b8a999] rounded-3xl py-20 px-10 max-w-4xl mx-auto mb-10"
     },
-      React.createElement("p", { className:"text-lg" },
+      React.createElement("p", { className: "text-lg text-gray-900" },
         "Find your perfect coffee setup without confusion. Just input your budget and let us guide you."
       )
     ),
 
     // BUTTONS
-    React.createElement("div", { className: "flex justify-center gap-20 pb-20" },
+    React.createElement("div", { className: "flex flex-col md:flex-row justify-center gap-6 pb-20 px-4" },
 
       React.createElement("button", {
         onClick: goToRecommend,
-        className: "bg-black text-white px-10 py-4 rounded-2xl text-lg font-semibold"
-      }, "Recommend Me!"),
+        className: "bg-black text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-gray-800 transition"
+      }, "💡 Recommend Me!"),
 
       React.createElement("button", {
         onClick: goToCompare,
-        className: "bg-black text-white px-10 py-4 rounded-2xl text-lg font-semibold"
-      }, "Let’s Compare!")
+        className: "bg-black text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-gray-800 transition"
+      }, "⚖️ Let's Compare!"),
+
+      React.createElement("button", {
+        onClick: goToBrowse,
+        className: "bg-black text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-gray-800 transition"
+      }, "🔍 Browse All")
     )
   );
 }
 
 /* =========================
-   RECOMMENDATION PAGE (FIXED LOGIC)
+   RECOMMENDATION PAGE
 ========================= */
 function RecommendationPage({ machines, grinders }) {
 
@@ -83,11 +94,11 @@ function RecommendationPage({ machines, grinders }) {
   const getBestItem = (items, maxBudget) => {
     return items
       .filter(i => i.price <= maxBudget)
-      .sort((a,b)=>b.price-a.price)[0] || null;
+      .sort((a, b) => b.price - a.price)[0] || null;
   };
 
   const getCheapest = (items) => {
-    return [...items].sort((a,b)=>a.price-b.price)[0];
+    return [...items].sort((a, b) => a.price - b.price)[0];
   };
 
   const generate = () => {
@@ -100,25 +111,16 @@ function RecommendationPage({ machines, grinders }) {
     let machine = null;
     let grinder = null;
 
-    // ======================
-    // MACHINE
-    // ======================
     if (machinePct > 0) {
-      const machineBudget = budget * (machinePct/100);
+      const machineBudget = budget * (machinePct / 100);
       machine = getBestItem(machines, machineBudget);
     }
 
-    // ======================
-    // GRINDER
-    // ======================
     if (grinderPct > 0) {
-      const grinderBudget = budget * (grinderPct/100);
+      const grinderBudget = budget * (grinderPct / 100);
       grinder = getBestItem(grinders, grinderBudget);
     }
 
-    // ======================
-    // IF BOTH EXIST → CHECK TOTAL
-    // ======================
     let message = "";
     let remaining = 0;
 
@@ -126,10 +128,8 @@ function RecommendationPage({ machines, grinders }) {
       (machine?.price || 0) +
       (grinder?.price || 0);
 
-    // ❌ CASE: NOTHING MATCHES IN SPLIT
     if ((machinePct > 0 && !machine) || (grinderPct > 0 && !grinder)) {
 
-      // Try global best combination
       let bestMachine = getBestItem(machines, budget);
       let bestGrinder = getBestItem(grinders, budget);
 
@@ -151,7 +151,6 @@ function RecommendationPage({ machines, grinders }) {
         (grinder?.price || 0);
     }
 
-    // ✅ REMAINING
     if (totalUsed <= budget) {
       remaining = budget - totalUsed;
     } else {
@@ -162,86 +161,147 @@ function RecommendationPage({ machines, grinders }) {
     setResult({ machine, grinder, message, remaining });
   };
 
-  return React.createElement("div", { className: "p-10 max-w-3xl mx-auto" },
+  return React.createElement("div", { className: "p-10 max-w-3xl mx-auto fade-in" },
 
     React.createElement("button", {
-      onClick: ()=>location.reload(),
-      className:"mb-6 underline"
+      onClick: () => location.reload(),
+      className: "mb-6 underline text-gray-700 hover:text-black transition"
     }, "← Back"),
 
+    React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "Get Recommended Setup"),
+
     // BUDGET INPUT
-    React.createElement("div", { className:"flex mb-6" },
-      React.createElement("span", { className:"bg-[#b8a999] px-3 py-2" }, "Rp"),
-      React.createElement("input", {
-        type:"text",
-        value: budgetInput,
-        placeholder:"Insert your budget",
-        onChange:e=>handleBudgetChange(e.target.value),
-        className:"w-full p-2"
-      })
+    React.createElement("div", { className: "mb-6" },
+      React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Your Budget"),
+      React.createElement("div", { className: "flex" },
+        React.createElement("span", { className: "bg-[#b8a999] px-4 py-3 font-semibold" }, "Rp"),
+        React.createElement("input", {
+          type: "text",
+          value: budgetInput,
+          placeholder: "Insert your budget",
+          onChange: (e) => handleBudgetChange(e.target.value),
+          className: "w-full p-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
+        })
+      )
     ),
 
-    // SLIDER
-    React.createElement("p", null, `Machine (${machinePct}%)`),
-    React.createElement("input", {
-      type:"range",
-      min:0,
-      max:100,
-      value:machinePct,
-      onChange:e=>{
-        const val = Number(e.target.value);
-        setMachinePct(val);
-        setGrinderPct(100 - val);
-      }
-    }),
+    // SLIDERS
+    React.createElement("div", { className: "mb-8" },
+      React.createElement("div", { className: "mb-4" },
+        React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" },
+          `Machine: ${machinePct}%`
+        ),
+        React.createElement("input", {
+          type: "range",
+          min: 0,
+          max: 100,
+          value: machinePct,
+          onChange: (e) => {
+            const val = Number(e.target.value);
+            setMachinePct(val);
+            setGrinderPct(100 - val);
+          },
+          className: "w-full"
+        })
+      ),
 
-    React.createElement("p", null, `Grinder (${grinderPct}%)`),
-    React.createElement("input", {
-      type:"range",
-      min:0,
-      max:100,
-      value:grinderPct,
-      onChange:e=>{
-        const val = Number(e.target.value);
-        setGrinderPct(val);
-        setMachinePct(100 - val);
-      }
-    }),
+      React.createElement("div", null,
+        React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" },
+          `Grinder: ${grinderPct}%`
+        ),
+        React.createElement("input", {
+          type: "range",
+          min: 0,
+          max: 100,
+          value: grinderPct,
+          onChange: (e) => {
+            const val = Number(e.target.value);
+            setGrinderPct(val);
+            setMachinePct(100 - val);
+          },
+          className: "w-full"
+        })
+      )
+    ),
 
     React.createElement("button", {
-      onClick:generate,
-      className:"bg-black text-white w-full mt-4 py-3 rounded-xl"
+      onClick: generate,
+      className: "bg-black text-white w-full py-4 rounded-xl font-bold text-lg mb-8 hover:bg-gray-800 transition"
     }, "Generate Recommendation"),
 
     // RESULT
-    result && React.createElement("div", { className:"mt-6 p-6 bg-white rounded-2xl shadow" },
+    result && React.createElement("div", { className: "p-8 bg-white rounded-2xl shadow-lg fade-in" },
 
       result.message &&
-      React.createElement("p", { className:"text-red-500 mb-3" }, result.message),
+      React.createElement("div", {
+        className: result.message.includes("Sorry") ? "text-red-500 mb-6 p-4 bg-red-50 rounded-lg" : "text-orange-600 mb-6 p-4 bg-orange-50 rounded-lg"
+      }, result.message),
 
-      React.createElement("p", null,
-        "Machine: " + (result.machine ? result.machine.name : "Not required for your setup")
-      ),
+      React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" },
 
-      React.createElement("p", null,
-        "Grinder: " + (result.grinder ? result.grinder.name : "Not required for your setup")
+        // MACHINE
+        React.createElement("div", { className: "border border-gray-200 rounded-lg p-4" },
+          React.createElement("p", { className: "text-sm text-gray-500 mb-2" }, "Coffee Machine"),
+          result.machine ? React.createElement("div", null,
+            result.machine.imageUrl && React.createElement("img", {
+              src: result.machine.imageUrl,
+              alt: result.machine.name,
+              className: "w-full h-40 object-cover rounded mb-3",
+              onError: (e) => e.target.style.display = "none"
+            }),
+            React.createElement("p", { className: "font-bold text-lg text-gray-900 mb-1" }, result.machine.name),
+            React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, result.machine.brand),
+            React.createElement("p", { className: "text-xl font-bold text-green-600" },
+              `Rp ${formatNumber(result.machine.price)}`
+            ),
+            React.createElement("p", { className: "text-sm text-gray-500 mt-2" },
+              `Power: ${formatNumber(result.machine.power)} W`
+            )
+          ) : React.createElement("p", { className: "text-gray-500" }, "Not required for your setup")
+        ),
+
+        // GRINDER
+        React.createElement("div", { className: "border border-gray-200 rounded-lg p-4" },
+          React.createElement("p", { className: "text-sm text-gray-500 mb-2" }, "Grinder"),
+          result.grinder ? React.createElement("div", null,
+            result.grinder.imageUrl && React.createElement("img", {
+              src: result.grinder.imageUrl,
+              alt: result.grinder.name,
+              className: "w-full h-40 object-cover rounded mb-3",
+              onError: (e) => e.target.style.display = "none"
+            }),
+            React.createElement("p", { className: "font-bold text-lg text-gray-900 mb-1" }, result.grinder.name),
+            React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, result.grinder.brand),
+            React.createElement("p", { className: "text-xl font-bold text-green-600" },
+              `Rp ${formatNumber(result.grinder.price)}`
+            ),
+            React.createElement("p", { className: "text-sm text-gray-500 mt-2" },
+              `Power: ${formatNumber(result.grinder.power)} W`
+            )
+          ) : React.createElement("p", { className: "text-gray-500" }, "Not required for your setup")
+        )
       ),
 
       result.remaining > 0 &&
-      React.createElement("p", { className:"text-green-600 mt-2" },
-        `You still have Rp ${formatNumber(result.remaining)} remaining`
+      React.createElement("div", { className: "bg-green-50 border border-green-200 p-4 rounded-lg mb-6" },
+        React.createElement("p", { className: "text-green-700 font-semibold" },
+          `✓ You still have Rp ${formatNumber(result.remaining)} remaining`
+        )
       ),
 
       React.createElement("a", {
-        href:`https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine?.name || "-"}%0AGrinder: ${result.grinder?.name || "-"}`,
-        target:"_blank",
-        className:"block mt-4 bg-green-500 text-white text-center py-2 rounded"
-      }, "Discuss via WhatsApp")
+        href: `https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine?.name || "-"}%0AGrinder: ${result.grinder?.name || "-"}`,
+        target: "_blank",
+        className: "block w-full bg-green-500 text-white text-center py-3 rounded-lg font-semibold hover:bg-green-600 transition"
+      }, "💬 Discuss via WhatsApp")
     )
   );
 }
 
-function ComparePage({ machines, grinders, goBack }) {
+/* =========================
+   COMPARE PAGE (ENHANCED)
+========================= */
+function ComparePage({ machines, grinders }) {
 
   const [type, setType] = useState("machine");
   const [itemA, setItemA] = useState(null);
@@ -258,101 +318,333 @@ function ComparePage({ machines, grinders, goBack }) {
     setShow(true);
   };
 
-  return React.createElement("div", { className:"p-10 max-w-5xl mx-auto" },
+  const ComparisonCard = ({ item, label, isMachine }) => {
+    if (!item) return null;
 
-    React.createElement("button", {
-      onClick: goBack,
-      className:"mb-6 underline"
-    }, "← Back"),
-
-    React.createElement("h2", {
-      className:"text-xl font-bold mb-6"
-    }, "Compare Products"),
-
-    // TYPE SELECT
-    React.createElement("select", {
-      value:type,
-      onChange:e=>{
-        setType(e.target.value);
-        setItemA(null);
-        setItemB(null);
-        setShow(false);
-      },
-      className:"w-full p-2 border mb-6"
+    return React.createElement("div", {
+      className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 fade-in"
     },
-      React.createElement("option",{value:"machine"},"Coffee Machine"),
-      React.createElement("option",{value:"grinder"},"Grinder")
-    ),
+      // IMAGE
+      item.imageUrl && React.createElement("div", {
+        className: "w-full h-64 bg-gray-100 overflow-hidden flex items-center justify-center"
+      },
+        React.createElement("img", {
+          src: item.imageUrl,
+          alt: item.name,
+          className: "w-full h-full object-cover",
+          onError: (e) => {
+            e.target.style.display = "none";
+          }
+        })
+      ),
 
-    // OPTION A
-    React.createElement("select",{
-  className:"w-full p-2 border",
-  value: itemA?.name || "",
-  onChange:e=>{
-    const selected = data.find(d=>d.name===e.target.value);
-    setItemA(selected);
-  }
-},
-  React.createElement("option",{value:""},"-- Choose Product --"),
-  data.map(item =>
-    React.createElement("option",{
-      key:item.name,
-      value:item.name,
-      disabled: itemB && item.name === itemB.name
-    }, item.name)
-  )
-),
+      // LABEL & NAME
+      React.createElement("div", { className: "p-6 border-b border-gray-200 bg-black text-white" },
+        React.createElement("p", { className: "text-sm font-semibold mb-1" }, label),
+        React.createElement("h3", { className: "text-xl font-bold" }, item.name)
+      ),
 
-    // OPTION B
-    React.createElement("select",{
-  className:"w-full p-2 border",
-  value: itemB?.name || "",
-  onChange:e=>{
-    const selected = data.find(d=>d.name===e.target.value);
-    setItemB(selected);
-  }
-},
-  React.createElement("option",{value:""},"-- Choose Product --"),
-  data.map(item =>
-    React.createElement("option",{
-      key:item.name,
-      value:item.name,
-      disabled: itemA && item.name === itemA.name
-    }, item.name)
-  )
-),
+      // SPECS
+      React.createElement("div", { className: "p-6" },
+        React.createElement("div", { className: "space-y-4" },
 
-    // BUTTON
-    React.createElement("button",{
-      onClick:handleCompare,
-      className:"bg-black text-white w-full py-3 rounded-xl"
-    },"Compare"),
-
-    // RESULT
-    show &&
-    React.createElement("div",{className:"grid grid-cols-2 gap-6 mt-10"},
-
-      [itemA, itemB].map((item,idx)=>
-        React.createElement("div",{
-          key:idx,
-          className:"bg-black text-white p-6 rounded-2xl"
-        },
-
-          React.createElement("h3",{className:"mb-4 font-bold"},
-            idx===0 ? "Option A" : "Option B"
+          React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Brand"),
+            React.createElement("p", { className: "font-semibold" }, item.brand)
           ),
 
-          React.createElement("p",null,"Brand: "+item.brand),
-          React.createElement("p",null,"Name: "+item.name),
-          React.createElement("p",null,"Price: Rp "+formatNumber(item.price)),
-          React.createElement("p",null,"Power: "+formatNumber(item.power)+" W"),
-          React.createElement("p",null,"Made In: "+item.madeIn)
+          React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Price"),
+            React.createElement("p", { className: "text-2xl font-bold text-green-600" },
+              `Rp ${formatNumber(item.price)}`
+            )
+          ),
+
+          item.rating && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Rating"),
+            React.createElement("p", { className: "font-semibold" },
+              `⭐ ${item.rating} (${item.reviewCount || 0} reviews)`
+            )
+          ),
+
+          React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Power"),
+            React.createElement("p", { className: "font-semibold" }, `${formatNumber(item.power)} W`)
+          ),
+
+          React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Made In"),
+            React.createElement("p", { className: "font-semibold" }, item.madeIn)
+          ),
+
+          // MACHINE SPECS
+          isMachine && item.boilerType && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Boiler Type"),
+            React.createElement("p", { className: "font-semibold" }, item.boilerType)
+          ),
+
+          isMachine && item.waterCapacity && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Water Capacity"),
+            React.createElement("p", { className: "font-semibold" }, `${item.waterCapacity} L`)
+          ),
+
+          isMachine && item.steamPressure && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Steam Pressure"),
+            React.createElement("p", { className: "font-semibold" }, `${item.steamPressure} Bar`)
+          ),
+
+          isMachine && item.warranty && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Warranty"),
+            React.createElement("p", { className: "font-semibold" }, `${item.warranty} months`)
+          ),
+
+          // GRINDER SPECS
+          !isMachine && item.burrrType && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Burr Type"),
+            React.createElement("p", { className: "font-semibold" }, item.burrrType)
+          ),
+
+          !isMachine && item.grindSettings && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Grind Settings"),
+            React.createElement("p", { className: "font-semibold" }, `${item.grindSettings} settings`)
+          ),
+
+          !isMachine && item.capacity && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Hopper Capacity"),
+            React.createElement("p", { className: "font-semibold" }, `${item.capacity}g`)
+          ),
+
+          item.features && React.createElement("div", null,
+            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Features"),
+            React.createElement("p", { className: "text-sm" }, item.features)
+          )
         )
+      )
+    );
+  };
+
+  return React.createElement("div", { className: "p-10 max-w-7xl mx-auto fade-in" },
+
+    React.createElement("button", {
+      onClick: () => location.reload(),
+      className: "mb-6 underline text-gray-700 hover:text-black transition"
+    }, "← Back"),
+
+    React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "Compare Products"),
+
+    // TYPE SELECT
+    React.createElement("div", { className: "mb-8" },
+      React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" },
+        "Product Type"
+      ),
+      React.createElement("select", {
+        value: type,
+        onChange: (e) => {
+          setType(e.target.value);
+          setItemA(null);
+          setItemB(null);
+          setShow(false);
+        },
+        className: "w-full p-3 border border-gray-300 rounded-lg bg-white font-semibold"
+      },
+        React.createElement("option", { value: "machine" }, "☕ Coffee Machine"),
+        React.createElement("option", { value: "grinder" }, "⚙️ Grinder")
+      )
+    ),
+
+    // PRODUCT SELECTORS
+    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" },
+      React.createElement("div", null,
+        React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" },
+          "Option A"
+        ),
+        React.createElement("select", {
+          className: "w-full p-3 border border-gray-300 rounded-lg",
+          value: itemA?.name || "",
+          onChange: (e) => {
+            const selected = data.find(d => d.name === e.target.value);
+            setItemA(selected);
+          }
+        },
+          React.createElement("option", { value: "" }, "-- Choose Product --"),
+          data.map(item =>
+            React.createElement("option", {
+              key: item.name,
+              value: item.name,
+              disabled: itemB && item.name === itemB.name
+            }, item.name)
+          )
+        )
+      ),
+
+      React.createElement("div", null,
+        React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" },
+          "Option B"
+        ),
+        React.createElement("select", {
+          className: "w-full p-3 border border-gray-300 rounded-lg",
+          value: itemB?.name || "",
+          onChange: (e) => {
+            const selected = data.find(d => d.name === e.target.value);
+            setItemB(selected);
+          }
+        },
+          React.createElement("option", { value: "" }, "-- Choose Product --"),
+          data.map(item =>
+            React.createElement("option", {
+              key: item.name,
+              value: item.name,
+              disabled: itemA && item.name === itemA.name
+            }, item.name)
+          )
+        )
+      )
+    ),
+
+    // COMPARE BUTTON
+    React.createElement("button", {
+      onClick: handleCompare,
+      className: "w-full bg-black text-white py-4 rounded-xl font-bold text-lg mb-10 hover:bg-gray-800 transition"
+    }, "Compare"),
+
+    // COMPARISON RESULT
+    show && React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8" },
+      React.createElement(ComparisonCard, {
+        item: itemA,
+        label: "Option A",
+        isMachine: type === "machine"
+      }),
+      React.createElement(ComparisonCard, {
+        item: itemB,
+        label: "Option B",
+        isMachine: type === "machine"
+      })
+    ),
+
+    // PRICE DIFFERENCE
+    show && itemA && itemB && React.createElement("div", {
+      className: "p-6 bg-blue-50 border border-blue-200 rounded-2xl fade-in"
+    },
+      React.createElement("p", { className: "text-sm text-blue-600 mb-2" }, "Price Comparison"),
+      React.createElement("p", { className: "text-2xl font-bold text-blue-900 mb-2" },
+        `Difference: Rp ${formatNumber(Math.abs(itemA.price - itemB.price))}`
+      ),
+      React.createElement("p", { className: "text-sm text-blue-700" },
+        itemA.price < itemB.price 
+          ? `✓ Option A is cheaper by Rp ${formatNumber(itemB.price - itemA.price)}`
+          : itemA.price > itemB.price
+          ? `✓ Option B is cheaper by Rp ${formatNumber(itemA.price - itemB.price)}`
+          : "They're the same price!"
       )
     )
   );
 }
-  
+
+/* =========================
+   BROWSE PAGE
+========================= */
+function BrowsePage({ machines, grinders }) {
+  const [type, setType] = useState("machine");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("price-asc");
+
+  const data = type === "machine" ? machines : grinders;
+
+  let filtered = data.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.brand.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (sortBy === "price-asc") filtered.sort((a, b) => a.price - b.price);
+  if (sortBy === "price-desc") filtered.sort((a, b) => b.price - a.price);
+  if (sortBy === "rating") filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  if (sortBy === "name") filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+  return React.createElement("div", { className: "p-10 max-w-6xl mx-auto fade-in" },
+
+    React.createElement("button", {
+      onClick: () => location.reload(),
+      className: "mb-6 underline text-gray-700 hover:text-black transition"
+    }, "← Back"),
+
+    React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "Browse All Products"),
+
+    // FILTERS
+    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" },
+      React.createElement("select", {
+        value: type,
+        onChange: (e) => {
+          setType(e.target.value);
+          setSearchTerm("");
+        },
+        className: "p-3 border border-gray-300 rounded-lg"
+      },
+        React.createElement("option", { value: "machine" }, "☕ Coffee Machines"),
+        React.createElement("option", { value: "grinder" }, "⚙️ Grinders")
+      ),
+
+      React.createElement("input", {
+        type: "text",
+        placeholder: "Search by name or brand...",
+        value: searchTerm,
+        onChange: (e) => setSearchTerm(e.target.value),
+        className: "p-3 border border-gray-300 rounded-lg"
+      }),
+
+      React.createElement("select", {
+        value: sortBy,
+        onChange: (e) => setSortBy(e.target.value),
+        className: "p-3 border border-gray-300 rounded-lg"
+      },
+        React.createElement("option", { value: "price-asc" }, "Price: Low to High"),
+        React.createElement("option", { value: "price-desc" }, "Price: High to Low"),
+        React.createElement("option", { value: "rating" }, "⭐ Highest Rated"),
+        React.createElement("option", { value: "name" }, "Name: A-Z")
+      )
+    ),
+
+    // PRODUCTS GRID
+    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" },
+      filtered.map(item =>
+        React.createElement("div", {
+          key: item.name,
+          className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition fade-in"
+        },
+          // IMAGE
+          item.imageUrl && React.createElement("img", {
+            src: item.imageUrl,
+            alt: item.name,
+            className: "w-full h-48 object-cover",
+            onError: (e) => e.target.style.display = "none"
+          }),
+
+          // INFO
+          React.createElement("div", { className: "p-4" },
+            React.createElement("h3", { className: "font-bold text-lg text-gray-900 mb-1" }, item.name),
+            React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, item.brand),
+
+            item.rating && React.createElement("p", { className: "text-sm text-yellow-600 mb-3" },
+              `⭐ ${item.rating} (${item.reviewCount || 0})`
+            ),
+
+            React.createElement("p", { className: "text-2xl font-bold text-green-600 mb-3" },
+              `Rp ${formatNumber(item.price)}`
+            ),
+
+            React.createElement("p", { className: "text-xs text-gray-500 mb-3" },
+              `${formatNumber(item.power)} W • ${item.madeIn}`
+            )
+          )
+        )
+      )
+    ),
+
+    !filtered.length && React.createElement("div", { className: "text-center py-12 text-gray-500" },
+      "No products found. Try adjusting your search."
+    )
+  );
+}
+
 /* =========================
    APP
 ========================= */
@@ -366,34 +658,33 @@ function App() {
     fetch("https://script.google.com/macros/s/AKfycbwt1UcSPjISrDQnCuDXDzMKt_kplTr2RDf_PE3hkqufn2a266vgwMeIX4SdAr--Lk3vyw/exec")
       .then(res => res.json())
       .then(data => {
-        setMachines(data.filter(i=>i.type==="machine"));
-        setGrinders(data.filter(i=>i.type==="grinder"));
-      });
+        setMachines(data.filter(i => i.type === "machine"));
+        setGrinders(data.filter(i => i.type === "grinder"));
+      })
+      .catch(err => console.error("Error loading data:", err));
   }, []);
 
   if (page === "home") {
     return React.createElement(Home, {
-      goToRecommend: ()=>setPage("recommend"),
-      goToCompare: ()=>setPage("compare")
+      goToRecommend: () => setPage("recommend"),
+      goToCompare: () => setPage("compare"),
+      goToBrowse: () => setPage("browse")
     });
   }
 
   if (page === "recommend") {
-    return React.createElement(RecommendationPage, {
-      machines,
-      grinders
-    });
+    return React.createElement(RecommendationPage, { machines, grinders });
   }
 
   if (page === "compare") {
-    return React.createElement(ComparePage, {
-      machines,
-      grinders,
-      goBack: ()=>setPage("home")
-    });
+    return React.createElement(ComparePage, { machines, grinders });
+  }
+
+  if (page === "browse") {
+    return React.createElement(BrowsePage, { machines, grinders });
   }
 }
-  
+
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
 
