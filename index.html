@@ -348,7 +348,7 @@ function FavoritesPage() {
 }
 
 /* =========================
-   RECOMMENDATION PAGE
+   RECOMMENDATION PAGE (FIXED)
 ========================= */
 function RecommendationPage({ machines, grinders }) {
 
@@ -361,7 +361,6 @@ function RecommendationPage({ machines, grinders }) {
   const [copySuccess, setCopySuccess] = useState(false);
 
   const handleBudgetChange = (val) => {
-    // Only allow numbers
     const num = parseNumber(val);
     setBudget(num);
     setBudgetInput(val === "" ? "" : formatNumber(num));
@@ -375,6 +374,18 @@ function RecommendationPage({ machines, grinders }) {
 
   const getCheapest = (items) => {
     return [...items].sort((a, b) => a.price - b.price)[0];
+  };
+
+  const handleMachineSliderChange = (val) => {
+    const newMachinePct = Number(val);
+    setMachinePct(newMachinePct);
+    setGrinderPct(100 - newMachinePct);
+  };
+
+  const handleGrinderSliderChange = (val) => {
+    const newGrinderPct = Number(val);
+    setGrinderPct(newGrinderPct);
+    setMachinePct(100 - newGrinderPct);
   };
 
   const generate = () => {
@@ -491,11 +502,7 @@ function RecommendationPage({ machines, grinders }) {
           min: 0,
           max: 100,
           value: machinePct,
-          onChange: (e) => {
-            const val = Number(e.target.value);
-            setMachinePct(val);
-            setGrinderPct(100 - val);
-          },
+          onChange: (e) => handleMachineSliderChange(e.target.value),
           className: "w-full"
         })
       ),
@@ -515,11 +522,7 @@ function RecommendationPage({ machines, grinders }) {
           min: 0,
           max: 100,
           value: grinderPct,
-          onChange: (e) => {
-            const val = Number(e.target.value);
-            setGrinderPct(val);
-            setMachinePct(100 - val);
-          },
+          onChange: (e) => handleGrinderSliderChange(e.target.value),
           className: "w-full"
         })
       )
@@ -530,7 +533,7 @@ function RecommendationPage({ machines, grinders }) {
       className: "bg-black text-white w-full py-4 rounded-xl font-bold text-lg mb-8 hover:bg-gray-800 transition"
     }, "Generate Recommendation"),
 
-    // RESULT
+    // RESULT - STAYS VISIBLE WHEN SLIDER CHANGES
     result && React.createElement("div", { className: "p-8 bg-white rounded-2xl shadow-lg fade-in" },
 
       result.message &&
@@ -610,8 +613,13 @@ function RecommendationPage({ machines, grinders }) {
         React.createElement("canvas", {
           ref: (canvas) => {
             if (canvas && result.machine && result.grinder) {
+              const chartInstance = canvas.chartInstance;
+              if (chartInstance) {
+                chartInstance.destroy();
+              }
+
               const ctx = canvas.getContext("2d");
-              new Chart(ctx, {
+              const newChart = new Chart(ctx, {
                 type: "doughnut",
                 data: {
                   labels: ["Machine", "Grinder", "Remaining"],
@@ -633,6 +641,7 @@ function RecommendationPage({ machines, grinders }) {
                   }
                 }
               });
+              canvas.chartInstance = newChart;
             }
           },
           className: "max-w-sm mx-auto"
@@ -684,7 +693,7 @@ function RecommendationPage({ machines, grinders }) {
 }
 
 /* =========================
-   COMPARE PAGE (ENHANCED)
+   COMPARE PAGE
 ========================= */
 function ComparePage({ machines, grinders }) {
 
@@ -944,7 +953,7 @@ function ComparePage({ machines, grinders }) {
 }
 
 /* =========================
-   BROWSE PAGE (FIXED)
+   BROWSE PAGE
 ========================= */
 function BrowsePage({ machines, grinders }) {
   const [type, setType] = useState("machine");
@@ -957,7 +966,6 @@ function BrowsePage({ machines, grinders }) {
   const data = type === "machine" ? machines : grinders;
   const allBrands = [...new Set(data.map(i => i.brand))].sort();
   
-  // Get max price from data for better slider range
   const maxPrice = Math.max(...data.map(i => i.price), 50000000);
 
   let filtered = data.filter(item =>
