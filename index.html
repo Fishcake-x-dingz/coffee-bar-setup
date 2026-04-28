@@ -944,7 +944,7 @@ function ComparePage({ machines, grinders }) {
 }
 
 /* =========================
-   BROWSE PAGE
+   BROWSE PAGE (FIXED)
 ========================= */
 function BrowsePage({ machines, grinders }) {
   const [type, setType] = useState("machine");
@@ -956,6 +956,9 @@ function BrowsePage({ machines, grinders }) {
 
   const data = type === "machine" ? machines : grinders;
   const allBrands = [...new Set(data.map(i => i.brand))].sort();
+  
+  // Get max price from data for better slider range
+  const maxPrice = Math.max(...data.map(i => i.price), 50000000);
 
   let filtered = data.filter(item =>
     (item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -976,6 +979,17 @@ function BrowsePage({ machines, grinders }) {
     );
   };
 
+  const handlePriceChange = (value) => {
+    setPriceRange([priceRange[0], parseInt(value)]);
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setSelectedBrands([]);
+    setPriceRange([0, maxPrice]);
+    setSortBy("price-asc");
+  };
+
   return React.createElement("div", { className: "p-10 max-w-6xl mx-auto fade-in" },
 
     React.createElement("button", {
@@ -983,69 +997,104 @@ function BrowsePage({ machines, grinders }) {
       className: "mb-6 underline text-gray-700 hover:text-black transition"
     }, "← Back"),
 
-    React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "Browse All Products"),
+    React.createElement("h2", { className: "text-3xl font-bold mb-2 text-gray-900" }, "Browse All Products"),
+    React.createElement("p", { className: "text-gray-600 mb-8" },
+      `Showing ${filtered.length} of ${data.length} ${type === 'machine' ? 'machines' : 'grinders'}`
+    ),
 
-    // FILTERS
-    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" },
-      // TYPE FILTER
-      React.createElement("select", {
-        value: type,
-        onChange: (e) => {
-          setType(e.target.value);
-          setSearchTerm("");
-          setSelectedBrands([]);
-        },
-        className: "p-3 border border-gray-300 rounded-lg"
-      },
-        React.createElement("option", { value: "machine" }, "☕ Coffee Machines"),
-        React.createElement("option", { value: "grinder" }, "⚙️ Grinders")
+    // FILTERS SECTION
+    React.createElement("div", { className: "bg-gray-50 p-6 rounded-2xl mb-8" },
+      // TOP ROW - TYPE & SEARCH
+      React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" },
+        // TYPE FILTER
+        React.createElement("div", null,
+          React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Product Type"),
+          React.createElement("select", {
+            value: type,
+            onChange: (e) => {
+              setType(e.target.value);
+              setSearchTerm("");
+              setSelectedBrands([]);
+              setPriceRange([0, maxPrice]);
+            },
+            className: "w-full p-3 border border-gray-300 rounded-lg bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-black"
+          },
+            React.createElement("option", { value: "machine" }, "☕ Coffee Machines"),
+            React.createElement("option", { value: "grinder" }, "⚙️ Grinders")
+          )
+        ),
+
+        // SEARCH FILTER
+        React.createElement("div", null,
+          React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Search"),
+          React.createElement("input", {
+            type: "text",
+            placeholder: "Search by name or brand...",
+            value: searchTerm,
+            onChange: (e) => setSearchTerm(e.target.value),
+            className: "w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+          })
+        )
       ),
 
-      // SEARCH FILTER
-      React.createElement("input", {
-        type: "text",
-        placeholder: "Search by name or brand...",
-        value: searchTerm,
-        onChange: (e) => setSearchTerm(e.target.value),
-        className: "p-3 border border-gray-300 rounded-lg"
-      }),
-
-      // PRICE RANGE FILTER
-      React.createElement("input", {
-        type: "range",
-        min: 0,
-        max: 50000000,
-        step: 100000,
-        value: priceRange[1],
-        onChange: (e) => setPriceRange([priceRange[0], parseInt(e.target.value)]),
-        className: "p-3 border border-gray-300 rounded-lg"
-      }),
+      // PRICE RANGE FILTER WITH DISPLAY
+      React.createElement("div", { className: "mb-6" },
+        React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Max Price"),
+        React.createElement("div", { className: "flex items-center gap-4" },
+          React.createElement("input", {
+            type: "range",
+            min: 0,
+            max: maxPrice,
+            step: 100000,
+            value: priceRange[1],
+            onChange: (e) => handlePriceChange(e.target.value),
+            className: "flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-black"
+          }),
+          React.createElement("div", { className: "bg-black text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap" },
+            `Rp ${formatNumber(priceRange[1])}`
+          )
+        ),
+        React.createElement("p", { className: "text-xs text-gray-500 mt-2" },
+          `Range: Rp 0 - Rp ${formatNumber(maxPrice)}`
+        )
+      ),
 
       // SORT
-      React.createElement("select", {
-        value: sortBy,
-        onChange: (e) => setSortBy(e.target.value),
-        className: "p-3 border border-gray-300 rounded-lg"
-      },
-        React.createElement("option", { value: "price-asc" }, "Price: Low to High"),
-        React.createElement("option", { value: "price-desc" }, "Price: High to Low"),
-        React.createElement("option", { value: "rating" }, "⭐ Highest Rated"),
-        React.createElement("option", { value: "name" }, "Name: A-Z")
-      )
+      React.createElement("div", { className: "mb-6" },
+        React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Sort By"),
+        React.createElement("select", {
+          value: sortBy,
+          onChange: (e) => setSortBy(e.target.value),
+          className: "w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black"
+        },
+          React.createElement("option", { value: "price-asc" }, "💰 Price: Low to High"),
+          React.createElement("option", { value: "price-desc" }, "💰 Price: High to Low"),
+          React.createElement("option", { value: "rating" }, "⭐ Highest Rated"),
+          React.createElement("option", { value: "name" }, "ABC Name: A-Z")
+        )
+      ),
+
+      // RESET FILTERS BUTTON
+      React.createElement("button", {
+        onClick: handleResetFilters,
+        className: "w-full bg-gray-400 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 transition"
+      }, "🔄 Reset All Filters")
     ),
 
     // BRAND FILTER
-    allBrands.length > 0 && React.createElement("div", { className: "mb-8 p-4 bg-gray-50 rounded-lg" },
-      React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-3" }, "Filter by Brand"),
+    allBrands.length > 0 && React.createElement("div", { className: "mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200" },
+      React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-3" }, 
+        `Filter by Brand (${selectedBrands.length} selected)`
+      ),
       React.createElement("div", { className: "flex flex-wrap gap-2" },
         allBrands.map(brand =>
           React.createElement("button", {
             key: brand,
             onClick: () => handleBrandToggle(brand),
-            className: `px-3 py-2 rounded-lg text-sm font-semibold transition ${
+            className: `px-4 py-2 rounded-lg text-sm font-semibold transition ${
               selectedBrands.includes(brand)
-                ? "bg-black text-white"
-                : "bg-white border border-gray-300 hover:border-black"
+                ? "bg-black text-white shadow-md"
+                : "bg-white border border-gray-300 text-gray-700 hover:border-black hover:bg-gray-50"
             }`
           }, brand)
         )
@@ -1053,54 +1102,59 @@ function BrowsePage({ machines, grinders }) {
     ),
 
     // PRODUCTS GRID
-    React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" },
-      filtered.map(item =>
-        React.createElement("div", {
-          key: item.name,
-          className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition fade-in cursor-pointer",
-          onClick: () => setModalItem(item)
-        },
-          // IMAGE
-          item.imageUrl && React.createElement("img", {
-            src: item.imageUrl,
-            alt: item.name,
-            className: "w-full h-48 object-cover",
-            onError: (e) => e.target.style.display = "none"
-          }),
-
-          // INFO
-          React.createElement("div", { className: "p-4" },
-            React.createElement("h3", { className: "font-bold text-lg text-gray-900 mb-1" }, item.name),
-            React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, item.brand),
-
-            item.rating && React.createElement("p", { className: "text-sm text-yellow-600 mb-3" },
-              `⭐ ${item.rating} (${item.reviewCount || 0})`
-            ),
-
-            React.createElement("p", { className: "text-2xl font-bold text-green-600 mb-3" },
-              `Rp ${formatNumber(item.price)}`
-            ),
-
-            React.createElement("p", { className: "text-xs text-gray-500 mb-3" },
-              `${formatNumber(item.power)} W • ${item.madeIn}`
-            )
-          ),
-
-          // FAVORITE BUTTON
-          React.createElement("button", {
-            onClick: (e) => {
-              e.stopPropagation();
-              addFavorite({ ...item, type });
-              alert("Added to favorites! ❤️");
+    React.createElement("div", null,
+      filtered.length > 0 ? React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" },
+        filtered.map(item =>
+          React.createElement("div", {
+            key: item.name,
+            className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition fade-in cursor-pointer"
+          },
+            React.createElement("div", {
+              onClick: () => setModalItem(item),
+              className: "h-full flex flex-col"
             },
-            className: "w-full bg-red-50 text-red-600 py-2 hover:bg-red-100 transition font-semibold text-sm"
-          }, "❤️ Add to Favorites")
-        )
-      )
-    ),
+              // IMAGE
+              item.imageUrl && React.createElement("img", {
+                src: item.imageUrl,
+                alt: item.name,
+                className: "w-full h-48 object-cover",
+                onError: (e) => e.target.style.display = "none"
+              }),
 
-    !filtered.length && React.createElement("div", { className: "text-center py-12 text-gray-500" },
-      "No products found. Try adjusting your filters."
+              // INFO
+              React.createElement("div", { className: "p-4 flex-1 flex flex-col" },
+                React.createElement("h3", { className: "font-bold text-lg text-gray-900 mb-1" }, item.name),
+                React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, item.brand),
+
+                item.rating && React.createElement("p", { className: "text-sm text-yellow-600 mb-3" },
+                  `⭐ ${item.rating} (${item.reviewCount || 0} reviews)`
+                ),
+
+                React.createElement("p", { className: "text-2xl font-bold text-green-600 mb-3 mt-auto" },
+                  `Rp ${formatNumber(item.price)}`
+                ),
+
+                React.createElement("p", { className: "text-xs text-gray-500 mb-3" },
+                  `${formatNumber(item.power)} W • ${item.madeIn}`
+                )
+              )
+            ),
+
+            // FAVORITE BUTTON
+            React.createElement("button", {
+              onClick: (e) => {
+                e.stopPropagation();
+                addFavorite({ ...item, type });
+                alert("Added to favorites! ❤️");
+              },
+              className: "w-full bg-red-50 text-red-600 py-2 hover:bg-red-100 transition font-semibold text-sm border-t border-gray-200"
+            }, "❤️ Add to Favorites")
+          )
+        )
+      ) : React.createElement("div", { className: "text-center py-16 text-gray-500" },
+        React.createElement("p", { className: "text-lg mb-2" }, "😕 No products found"),
+        React.createElement("p", { className: "text-sm" }, "Try adjusting your filters or search terms")
+      )
     ),
 
     modalItem && React.createElement(ProductModal, {
