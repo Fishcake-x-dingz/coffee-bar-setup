@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>DoseClose</title>
+  <title>DoseClose - Coffee Setup Recommender</title>
 
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -32,6 +32,15 @@
     .heart-icon.filled {
       color: #dc2626;
     }
+
+    /* WARNING BADGE ANIMATIONS */
+    .pulse-warning {
+      animation: pulse-warn 2s infinite;
+    }
+    @keyframes pulse-warn {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
   </style>
 </head>
 
@@ -44,8 +53,10 @@
 const { useState, useEffect, useRef } = React;
 
 /* =========================
-   HELPERS
+   CONSTANTS & HELPERS
 ========================= */
+const MIN_SETUP_BUDGET = 10000000; // 10M IDR minimum for any setup
+
 const formatNumber = (num) => num ? num.toLocaleString("en-US") : "";
 const parseNumber = (val) => Number(val.replace(/[^0-9]/g, "")) || 0;
 
@@ -80,6 +91,142 @@ const generateShareLink = (machine, grinder, budget) => {
 
 const generateQRCode = (text) => {
   return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(text)}`;
+};
+
+/* =========================
+   IMPROVED RECOMMENDATION LOGIC
+========================= */
+
+/**
+ * Calculate value score: prioritizes rating and best price within budget
+ * Scoring: (rating * 30) + (maxPrice - price) / 1M
+ * Higher score = better recommendation
+ */
+const calculateValueScore = (item, maxBudget) => {
+  if (item.price > maxBudget) return -1;
+  
+  const ratingScore = (item.rating || 0) * 30;
+  const priceScore = (maxBudget - item.price) / 1000000; // Incentivize staying under budget
+  
+  return ratingScore + priceScore;
+};
+
+/**
+ * FIXED: Get best item within budget based on value score
+ * Falls back to cheapest if no rated items exist
+ */
+const getBestItem = (items, maxBudget) => {
+  const withinBudget = items.filter(i => i.price <= maxBudget);
+  
+  if (withinBudget.length === 0) return null;
+  
+  // If we have items with ratings, use value score
+  const ratedItems = withinBudget.filter(i => (i.rating || 0) > 0);
+  
+  if (ratedItems.length > 0) {
+    return ratedItems.reduce((best, current) => 
+      calculateValueScore(current, maxBudget) > calculateValueScore(best, maxBudget) ? current : best
+    );
+  }
+  
+  // Fallback to cheapest option
+  return withinBudget.sort((a, b) => a.price - b.price)[0];
+};
+
+/**
+ * Get the cheapest item available (for fallback recommendations)
+ */
+const getCheapest = (items) => {
+  return [...items].sort((a, b) => a.price - b.price)[0];
+};
+
+/**
+ * Calculate minimum viable budget for a given allocation
+ */
+const calculateMinimumBudget = (machines, grinders, machinePct, grinderPct) => {
+  let minCost = 0;
+  
+  if (machinePct > 0 && machines.length > 0) {
+    const minMachine = getCheapest(machines);
+    minCost += minMachine.price;
+  }
+  
+  if (grinderPct > 0 && grinders.length > 0) {
+    const minGrinder = getCheapest(grinders);
+    minCost += minGrinder.price;
+  }
+  
+  return minCost;
+};
+
+/**
+ * Generate recommendation with validation
+ */
+const generateRecommendation = (budget, machines, grinders, machinePct, grinderPct) => {
+  const result = {
+    machine: null,
+    grinder: null,
+    messages: [], // Changed to array for multiple messages
+    warnings: [],
+    remaining: 0,
+    isFeasible: true
+  };
+
+  if (!budget || budget < MIN_SETUP_BUDGET) {
+    result.messages.push(`❌ Minimum budget is Rp ${formatNumber(MIN_SETUP_BUDGET)}`);
+    result.isFeasible = false;
+    return result;
+  }
+
+  let machine = null;
+  let grinder = null;
+  let totalUsed = 0;
+
+  // Calculate individual budgets
+  const machineBudget = budget * (machinePct / 100);
+  const grinderBudget = budget * (grinderPct / 100);
+
+  // Try to find items within their allocated budgets
+  if (machinePct > 0 && machines.length > 0) {
+    machine = getBestItem(machines, machineBudget);
+    if (machine) {
+      totalUsed += machine.price;
+    } else {
+      const cheapest = getCheapest(machines);
+      result.warnings.push(`⚠️ No machine within allocated budget (${formatNumber(machineBudget)}). Recommend cheapest: ${cheapest.name} at ${formatNumber(cheapest.price)}`);
+      machine = cheapest;
+      totalUsed += machine.price;
+    }
+  }
+
+  if (grinderPct > 0 && grinders.length > 0) {
+    grinder = getBestItem(grinders, grinderBudget);
+    if (grinder) {
+      totalUsed += grinder.price;
+    } else {
+      const cheapest = getCheapest(grinders);
+      result.warnings.push(`⚠️ No grinder within allocated budget (${formatNumber(grinderBudget)}). Recommend cheapest: ${cheapest.name} at ${formatNumber(cheapest.price)}`);
+      grinder = cheapest;
+      totalUsed += grinder.price;
+    }
+  }
+
+  // Final validation
+  if (totalUsed > budget) {
+    result.isFeasible = true; // Still feasible, just over budget
+    const diff = totalUsed - budget;
+    result.messages.push(`📊 Total setup costs Rp ${formatNumber(totalUsed)}. Add Rp ${formatNumber(diff)} more to get this exact setup.`);
+  } else {
+    result.remaining = budget - totalUsed;
+    if (result.remaining > 0) {
+      result.messages.push(`✅ You have Rp ${formatNumber(result.remaining)} remaining in your budget!`);
+    }
+  }
+
+  result.machine = machine;
+  result.grinder = grinder;
+
+  return result;
 };
 
 /* =========================
@@ -125,13 +272,11 @@ function ProductModal({ item, isMachine, onClose }) {
     React.createElement("div", {
       className: "bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
     },
-      // CLOSE BUTTON
       React.createElement("button", {
         onClick: onClose,
         className: "sticky top-4 right-4 float-right bg-gray-200 hover:bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center z-10"
       }, "✕"),
 
-      // IMAGE
       item.imageUrl && React.createElement("img", {
         src: item.imageUrl,
         alt: item.name,
@@ -139,15 +284,12 @@ function ProductModal({ item, isMachine, onClose }) {
         onError: (e) => e.target.style.display = "none"
       }),
 
-      // CONTENT
       React.createElement("div", { className: "p-8" },
-        // HEADER
         React.createElement("div", { className: "mb-6" },
           React.createElement("h2", { className: "text-3xl font-bold text-gray-900 mb-2" }, item.name),
           React.createElement("p", { className: "text-lg text-gray-600" }, item.brand)
         ),
 
-        // PRICE & RATING
         React.createElement("div", { className: "grid grid-cols-2 gap-4 mb-6" },
           React.createElement("div", { className: "p-4 bg-green-50 rounded-lg" },
             React.createElement("p", { className: "text-sm text-gray-600 mb-1" }, "Price"),
@@ -166,7 +308,6 @@ function ProductModal({ item, isMachine, onClose }) {
           )
         ),
 
-        // SPECS
         React.createElement("div", { className: "mb-6" },
           React.createElement("h3", { className: "text-lg font-bold text-gray-900 mb-4" }, "Specifications"),
           React.createElement("div", { className: "grid grid-cols-2 gap-4" },
@@ -196,9 +337,9 @@ function ProductModal({ item, isMachine, onClose }) {
               React.createElement("p", { className: "font-semibold" }, `${item.warranty} months`)
             ),
 
-            !isMachine && item.burrrType && React.createElement("div", null,
+            !isMachine && item.burrType && React.createElement("div", null,
               React.createElement("p", { className: "text-sm text-gray-500" }, "Burr Type"),
-              React.createElement("p", { className: "font-semibold" }, item.burrrType)
+              React.createElement("p", { className: "font-semibold" }, item.burrType)
             ),
             !isMachine && item.grindSettings && React.createElement("div", null,
               React.createElement("p", { className: "text-sm text-gray-500" }, "Grind Settings"),
@@ -232,7 +373,6 @@ function ProductModal({ item, isMachine, onClose }) {
 function Home({ goToRecommend, goToCompare, goToBrowse, goToFavorites }) {
   return React.createElement("div", { className: "text-center fade-in" },
 
-    // LOGO
     React.createElement("div", { className: "py-10" },
       React.createElement("img", {
         src: "logo.png",
@@ -241,7 +381,6 @@ function Home({ goToRecommend, goToCompare, goToBrowse, goToFavorites }) {
       })
     ),
 
-    // COPY BOX
     React.createElement("div", {
       className: "bg-[#b8a999] rounded-3xl py-20 px-10 max-w-4xl mx-auto mb-10"
     },
@@ -250,7 +389,6 @@ function Home({ goToRecommend, goToCompare, goToBrowse, goToFavorites }) {
       )
     ),
 
-    // BUTTONS
     React.createElement("div", { className: "flex flex-col md:flex-row justify-center gap-6 pb-20 px-4" },
 
       React.createElement("button", {
@@ -348,7 +486,7 @@ function FavoritesPage() {
 }
 
 /* =========================
-   RECOMMENDATION PAGE
+   RECOMMENDATION PAGE (FIXED & IMPROVED)
 ========================= */
 function RecommendationPage({ machines, grinders }) {
 
@@ -366,16 +504,6 @@ function RecommendationPage({ machines, grinders }) {
     setBudgetInput(val === "" ? "" : formatNumber(num));
   };
 
-  const getBestItem = (items, maxBudget) => {
-    return items
-      .filter(i => i.price <= maxBudget)
-      .sort((a, b) => b.price - a.price)[0] || null;
-  };
-
-  const getCheapest = (items) => {
-    return [...items].sort((a, b) => a.price - b.price)[0];
-  };
-
   const handleMachineSliderChange = (val) => {
     const newMachinePct = Number(val);
     setMachinePct(newMachinePct);
@@ -389,63 +517,14 @@ function RecommendationPage({ machines, grinders }) {
   };
 
   const generate = () => {
-
     if (!budget) {
-      alert("Please insert your budget");
+      alert("Please enter your budget");
       return;
     }
 
-    let machine = null;
-    let grinder = null;
-
-    if (machinePct > 0) {
-      const machineBudget = budget * (machinePct / 100);
-      machine = getBestItem(machines, machineBudget);
-    }
-
-    if (grinderPct > 0) {
-      const grinderBudget = budget * (grinderPct / 100);
-      grinder = getBestItem(grinders, grinderBudget);
-    }
-
-    let message = "";
-    let remaining = 0;
-
-    let totalUsed =
-      (machine?.price || 0) +
-      (grinder?.price || 0);
-
-    if ((machinePct > 0 && !machine) || (grinderPct > 0 && !grinder)) {
-
-      let bestMachine = getBestItem(machines, budget);
-      let bestGrinder = getBestItem(grinders, budget);
-
-      if (!bestMachine) bestMachine = getCheapest(machines);
-      if (!bestGrinder) bestGrinder = getCheapest(grinders);
-
-      const minSetup = getCheapest(machines).price + getCheapest(grinders).price;
-
-      if (budget < minSetup) {
-        const diff = minSetup - budget;
-        message = `Sorry, there's no suitable setup within the budget. Add Rp ${formatNumber(diff)} more to get started.`;
-      }
-
-      machine = machinePct > 0 ? bestMachine : null;
-      grinder = grinderPct > 0 ? bestGrinder : null;
-
-      totalUsed =
-        (machine?.price || 0) +
-        (grinder?.price || 0);
-    }
-
-    if (totalUsed <= budget) {
-      remaining = budget - totalUsed;
-    } else {
-      const diff = totalUsed - budget;
-      message = `Add Rp ${formatNumber(diff)} more to get this setup`;
-    }
-
-    setResult({ machine, grinder, message, remaining });
+    // Use improved recommendation logic
+    const recommendation = generateRecommendation(budget, machines, grinders, machinePct, grinderPct);
+    setResult(recommendation);
     setShowShare(false);
   };
 
@@ -473,15 +552,17 @@ function RecommendationPage({ machines, grinders }) {
         React.createElement("input", {
           type: "text",
           value: budgetInput,
-          placeholder: "e.g., 5000000",
+          placeholder: "e.g., 100000000",
           onChange: (e) => handleBudgetChange(e.target.value),
           className: "w-full p-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
         })
       ),
-      React.createElement("p", { className: "text-xs text-gray-500 mt-1" }, "Only numbers allowed")
+      React.createElement("p", { className: "text-xs text-gray-500 mt-1" }, 
+        `Minimum recommended: Rp ${formatNumber(MIN_SETUP_BUDGET)}`
+      )
     ),
 
-    // SLIDERS WITH BETTER UX
+    // SLIDERS
     React.createElement("div", { className: "mb-8 bg-gray-50 p-6 rounded-xl" },
       React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-6" }, 
         "Adjust budget allocation (total: 100%)"
@@ -536,12 +617,23 @@ function RecommendationPage({ machines, grinders }) {
     // RESULT
     result && React.createElement("div", { className: "p-8 bg-white rounded-2xl shadow-lg fade-in" },
 
-      result.message &&
-      React.createElement("div", {
-        className: result.message.includes("Sorry") ? "text-red-500 mb-6 p-4 bg-red-50 rounded-lg" : "text-orange-600 mb-6 p-4 bg-orange-50 rounded-lg"
-      }, result.message),
+      // MESSAGE ALERTS
+      result.messages.map((msg, idx) =>
+        React.createElement("div", {
+          key: idx,
+          className: "mb-4 p-4 rounded-lg " + (msg.includes("❌") ? "bg-red-50 text-red-700" : msg.includes("⚠️") ? "bg-orange-50 text-orange-700" : "bg-green-50 text-green-700")
+        }, msg)
+      ),
 
-      React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" },
+      // WARNING ALERTS
+      result.warnings.map((warn, idx) =>
+        React.createElement("div", {
+          key: idx,
+          className: "mb-4 p-4 rounded-lg bg-yellow-50 text-yellow-800 border-l-4 border-yellow-500 pulse-warning"
+        }, warn)
+      ),
+
+      result.isFeasible && React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" },
 
         // MACHINE
         React.createElement("div", { className: "border border-gray-200 rounded-lg p-4" },
@@ -560,6 +652,9 @@ function RecommendationPage({ machines, grinders }) {
             ),
             React.createElement("p", { className: "text-sm text-gray-500 mt-2" },
               `Power: ${formatNumber(result.machine.power)} W`
+            ),
+            result.machine.rating && React.createElement("p", { className: "text-sm text-yellow-600 mt-1" },
+              `⭐ Rating: ${result.machine.rating}`
             ),
             React.createElement("button", {
               onClick: () => {
@@ -589,6 +684,9 @@ function RecommendationPage({ machines, grinders }) {
             React.createElement("p", { className: "text-sm text-gray-500 mt-2" },
               `Power: ${formatNumber(result.grinder.power)} W`
             ),
+            result.grinder.rating && React.createElement("p", { className: "text-sm text-yellow-600 mt-1" },
+              `⭐ Rating: ${result.grinder.rating}`
+            ),
             React.createElement("button", {
               onClick: () => {
                 addFavorite({ ...result.grinder, type: 'grinder' });
@@ -600,14 +698,7 @@ function RecommendationPage({ machines, grinders }) {
         )
       ),
 
-      result.remaining > 0 &&
-      React.createElement("div", { className: "bg-green-50 border border-green-200 p-4 rounded-lg mb-6" },
-        React.createElement("p", { className: "text-green-700 font-semibold" },
-          `✓ You still have Rp ${formatNumber(result.remaining)} remaining`
-        )
-      ),
-
-      // BUDGET BREAKDOWN PIE CHART
+      // BUDGET BREAKDOWN
       (result.machine || result.grinder) && React.createElement("div", { className: "bg-gray-50 p-6 rounded-lg mb-6" },
         React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-4" }, "Budget Breakdown"),
         React.createElement("canvas", {
@@ -720,7 +811,6 @@ function ComparePage({ machines, grinders }) {
       className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 fade-in cursor-pointer hover:shadow-xl transition",
       onClick: () => setModalItem(item)
     },
-      // IMAGE
       item.imageUrl && React.createElement("div", {
         className: "w-full h-64 bg-gray-100 overflow-hidden flex items-center justify-center"
       },
@@ -734,13 +824,11 @@ function ComparePage({ machines, grinders }) {
         })
       ),
 
-      // LABEL & NAME
       React.createElement("div", { className: "p-6 border-b border-gray-200 bg-black text-white" },
         React.createElement("p", { className: "text-sm font-semibold mb-1" }, label),
         React.createElement("h3", { className: "text-xl font-bold" }, item.name)
       ),
 
-      // SPECS
       React.createElement("div", { className: "p-6" },
         React.createElement("div", { className: "space-y-4" },
 
@@ -773,7 +861,6 @@ function ComparePage({ machines, grinders }) {
             React.createElement("p", { className: "font-semibold" }, item.madeIn)
           ),
 
-          // MACHINE SPECS
           isMachine && item.boilerType && React.createElement("div", null,
             React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Boiler Type"),
             React.createElement("p", { className: "font-semibold" }, item.boilerType)
@@ -794,10 +881,9 @@ function ComparePage({ machines, grinders }) {
             React.createElement("p", { className: "font-semibold" }, `${item.warranty} months`)
           ),
 
-          // GRINDER SPECS
-          !isMachine && item.burrrType && React.createElement("div", null,
+          !isMachine && item.burrType && React.createElement("div", null,
             React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Burr Type"),
-            React.createElement("p", { className: "font-semibold" }, item.burrrType)
+            React.createElement("p", { className: "font-semibold" }, item.burrType)
           ),
 
           !isMachine && item.grindSettings && React.createElement("div", null,
@@ -817,7 +903,6 @@ function ComparePage({ machines, grinders }) {
         )
       ),
 
-      // ADD TO FAVORITES
       React.createElement("button", {
         onClick: (e) => {
           e.stopPropagation();
@@ -838,7 +923,6 @@ function ComparePage({ machines, grinders }) {
 
     React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "Compare Products"),
 
-    // TYPE SELECT
     React.createElement("div", { className: "mb-8" },
       React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" },
         "Product Type"
@@ -858,7 +942,6 @@ function ComparePage({ machines, grinders }) {
       )
     ),
 
-    // PRODUCT SELECTORS
     React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" },
       React.createElement("div", null,
         React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" },
@@ -907,13 +990,11 @@ function ComparePage({ machines, grinders }) {
       )
     ),
 
-    // COMPARE BUTTON
     React.createElement("button", {
       onClick: handleCompare,
       className: "w-full bg-black text-white py-4 rounded-xl font-bold text-lg mb-10 hover:bg-gray-800 transition"
     }, "Compare"),
 
-    // COMPARISON RESULT
     show && React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8" },
       React.createElement(ComparisonCard, {
         item: itemA,
@@ -927,7 +1008,6 @@ function ComparePage({ machines, grinders }) {
       })
     ),
 
-    // PRICE DIFFERENCE
     show && itemA && itemB && React.createElement("div", {
       className: "p-6 bg-blue-50 border border-blue-200 rounded-2xl fade-in"
     },
@@ -953,7 +1033,7 @@ function ComparePage({ machines, grinders }) {
 }
 
 /* =========================
-   BROWSE PAGE (PRICE RANGE FIXED)
+   BROWSE PAGE
 ========================= */
 function BrowsePage({ machines, grinders }) {
   const [type, setType] = useState("machine");
@@ -967,7 +1047,6 @@ function BrowsePage({ machines, grinders }) {
   const data = type === "machine" ? machines : grinders;
   const allBrands = [...new Set(data.map(i => i.brand))].sort();
   
-  // Calculate max price whenever data or type changes
   useEffect(() => {
     if (data.length > 0) {
       const actualMaxPrice = Math.max(...data.map(i => i.price));
@@ -1025,11 +1104,8 @@ function BrowsePage({ machines, grinders }) {
       `Showing ${filtered.length} of ${data.length} ${type === 'machine' ? 'machines' : 'grinders'}`
     ),
 
-    // FILTERS SECTION
     React.createElement("div", { className: "bg-gray-50 p-6 rounded-2xl mb-8" },
-      // TOP ROW - TYPE & SEARCH
       React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" },
-        // TYPE FILTER
         React.createElement("div", null,
           React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Product Type"),
           React.createElement("select", {
@@ -1042,7 +1118,6 @@ function BrowsePage({ machines, grinders }) {
           )
         ),
 
-        // SEARCH FILTER
         React.createElement("div", null,
           React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Search"),
           React.createElement("input", {
@@ -1055,7 +1130,6 @@ function BrowsePage({ machines, grinders }) {
         )
       ),
 
-      // PRICE RANGE FILTER WITH DISPLAY
       React.createElement("div", { className: "mb-6" },
         React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, 
           `Max Price (Highest: Rp ${formatNumber(maxPriceValue)})`
@@ -1079,7 +1153,6 @@ function BrowsePage({ machines, grinders }) {
         )
       ),
 
-      // SORT
       React.createElement("div", { className: "mb-6" },
         React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Sort By"),
         React.createElement("select", {
@@ -1094,14 +1167,12 @@ function BrowsePage({ machines, grinders }) {
         )
       ),
 
-      // RESET FILTERS BUTTON
       React.createElement("button", {
         onClick: handleResetFilters,
         className: "w-full bg-gray-400 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 transition"
       }, "🔄 Reset All Filters")
     ),
 
-    // BRAND FILTER
     allBrands.length > 0 && React.createElement("div", { className: "mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200" },
       React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-3" }, 
         `Filter by Brand (${selectedBrands.length} selected)`
@@ -1121,7 +1192,6 @@ function BrowsePage({ machines, grinders }) {
       )
     ),
 
-    // PRODUCTS GRID
     React.createElement("div", null,
       filtered.length > 0 ? React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" },
         filtered.map(item =>
@@ -1133,7 +1203,6 @@ function BrowsePage({ machines, grinders }) {
               onClick: () => setModalItem(item),
               className: "h-full flex flex-col"
             },
-              // IMAGE
               item.imageUrl && React.createElement("img", {
                 src: item.imageUrl,
                 alt: item.name,
@@ -1141,7 +1210,6 @@ function BrowsePage({ machines, grinders }) {
                 onError: (e) => e.target.style.display = "none"
               }),
 
-              // INFO
               React.createElement("div", { className: "p-4 flex-1 flex flex-col" },
                 React.createElement("h3", { className: "font-bold text-lg text-gray-900 mb-1" }, item.name),
                 React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, item.brand),
@@ -1160,7 +1228,6 @@ function BrowsePage({ machines, grinders }) {
               )
             ),
 
-            // FAVORITE BUTTON
             React.createElement("button", {
               onClick: (e) => {
                 e.stopPropagation();
