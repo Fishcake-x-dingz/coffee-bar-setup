@@ -196,9 +196,9 @@ function ProductModal({ item, isMachine, onClose }) {
               React.createElement("p", { className: "font-semibold" }, `${item.warranty} months`)
             ),
 
-            !isMachine && item.burrrType && React.createElement("div", null,
+            !isMachine && item.burrType && React.createElement("div", null,
               React.createElement("p", { className: "text-sm text-gray-500" }, "Burr Type"),
-              React.createElement("p", { className: "font-semibold" }, item.burrrType)
+              React.createElement("p", { className: "font-semibold" }, item.burrType)
             ),
             !isMachine && item.grindSettings && React.createElement("div", null,
               React.createElement("p", { className: "text-sm text-gray-500" }, "Grind Settings"),
@@ -800,9 +800,9 @@ function ComparePage({ machines, grinders }) {
           ),
 
           // GRINDER SPECS
-          !isMachine && item.burrrType && React.createElement("div", null,
+          !isMachine && item.burrType && React.createElement("div", null,
             React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Burr Type"),
-            React.createElement("p", { className: "font-semibold" }, item.burrrType)
+            React.createElement("p", { className: "font-semibold" }, item.burrType)
           ),
 
           !isMachine && item.grindSettings && React.createElement("div", null,
