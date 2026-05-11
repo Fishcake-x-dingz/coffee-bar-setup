@@ -366,11 +366,16 @@ function RecommendationPage({ machines, grinders }) {
     setBudgetInput(val === "" ? "" : formatNumber(num));
   };
 
-  const getBestItem = (items, maxBudget) => {
-    return items
-      .filter(i => i.price <= maxBudget)
-      .sort((a, b) => b.price - a.price)[0] || null;
-  };
+// NEW - CORRECT
+const getBestItem = (items, maxBudget) => {
+  // Find items within budget, return highest-priced one
+  const withinBudget = items.filter(i => i.price <= maxBudget);
+  if (withinBudget.length > 0) {
+    return withinBudget.sort((a, b) => b.price - a.price)[0];
+  }
+  // If no item within budget, return the cheapest overall
+  return items.sort((a, b) => a.price - b.price)[0];
+};
 
   const getCheapest = (items) => {
     return [...items].sort((a, b) => a.price - b.price)[0];
