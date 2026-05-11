@@ -196,26 +196,28 @@ function ProductModal({ item, isMachine, onClose }) {
               React.createElement("p", { className: "font-semibold" }, `${item.warranty} months`)
             ),
 
-            !isMachine && item.burrType && React.createElement("div", null,
-              React.createElement("p", { className: "text-sm text-gray-500" }, "Burr Type"),
-              React.createElement("p", { className: "font-semibold" }, item.burrType)
-            ),
-            !isMachine && item.grindSettings && React.createElement("div", null,
-              React.createElement("p", { className: "text-sm text-gray-500" }, "Grind Settings"),
-              React.createElement("p", { className: "font-semibold" }, `${item.grindSettings} settings`)
-            ),
-            !isMachine && item.capacity && React.createElement("div", null,
-              React.createElement("p", { className: "text-sm text-gray-500" }, "Hopper Capacity"),
-              React.createElement("p", { className: "font-semibold" }, `${item.capacity}g`)
-            )
-          )
-        ),
+            // Lines 199-218 in dosclose-fixed.html
 
-        item.features && React.createElement("div", { className: "mb-6" },
-          React.createElement("h3", { className: "text-lg font-bold text-gray-900 mb-2" }, "Features"),
-          React.createElement("p", { className: "text-gray-700" }, item.features)
-        ),
-
+!isMachine && item.burrType && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500" }, "Burr Type"),
+  React.createElement("p", { className: "font-semibold" }, item.burrType)
+),
+!isMachine && item.burrDiameter && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500" }, "Burr Diameter"),
+  React.createElement("p", { className: "font-semibold" }, `${item.burrDiameter} mm`)
+),
+!isMachine && item.grindSpeed && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500" }, "Grind Speed"),
+  React.createElement("p", { className: "font-semibold" }, item.grindSpeed)
+),
+!isMachine && item.hopperCapacity && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500" }, "Hopper Capacity"),
+  React.createElement("p", { className: "font-semibold" }, `${item.hopperCapacity}g`)
+),
+!isMachine && item.speed && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500" }, "Motor Speed"),
+  React.createElement("p", { className: "font-semibold" }, `${item.speed} RPM`)
+),
         React.createElement("a", {
           href: `https://wa.me/6285282704370?text=Hi!, I'm interested in this ${isMachine ? 'coffee machine' : 'grinder'}:%0A${item.name} by ${item.brand}`,
           target: "_blank",
@@ -800,25 +802,33 @@ function ComparePage({ machines, grinders }) {
           ),
 
           // GRINDER SPECS
-          !isMachine && item.burrType && React.createElement("div", null,
-            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Burr Type"),
-            React.createElement("p", { className: "font-semibold" }, item.burrType)
-          ),
+          // Lines 795-818 in dosclose-fixed.html
 
-          !isMachine && item.grindSettings && React.createElement("div", null,
-            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Grind Settings"),
-            React.createElement("p", { className: "font-semibold" }, `${item.grindSettings} settings`)
-          ),
+// GRINDER SPECS
+!isMachine && item.burrType && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Burr Type"),
+  React.createElement("p", { className: "font-semibold" }, item.burrType)
+),
 
-          !isMachine && item.capacity && React.createElement("div", null,
-            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Hopper Capacity"),
-            React.createElement("p", { className: "font-semibold" }, `${item.capacity}g`)
-          ),
+!isMachine && item.burrDiameter && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Burr Diameter"),
+  React.createElement("p", { className: "font-semibold" }, `${item.burrDiameter} mm`)
+),
 
-          item.features && React.createElement("div", null,
-            React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Features"),
-            React.createElement("p", { className: "text-sm" }, item.features)
-          )
+!isMachine && item.grindSpeed && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Grind Speed"),
+  React.createElement("p", { className: "font-semibold" }, item.grindSpeed)
+),
+
+!isMachine && item.hopperCapacity && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Hopper Capacity"),
+  React.createElement("p", { className: "font-semibold" }, `${item.hopperCapacity}g`)
+),
+
+!isMachine && item.speed && React.createElement("div", null,
+  React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Motor Speed"),
+  React.createElement("p", { className: "font-semibold" }, `${item.speed} RPM`)
+),
         )
       ),
 
