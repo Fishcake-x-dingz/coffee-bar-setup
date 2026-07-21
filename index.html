@@ -2,46 +2,118 @@
 <html>
 <head>
   <title>DoseClose</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Find your perfect coffee bar setup with DoseClose - Budget recommendations, equipment comparisons, and expert guidance.">
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <link rel="icon" type="image/png" href="logo.png">
   <style>
-    body { margin: 0; padding: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #root { min-height: 100vh; }
+    
     .fade-in { animation: fadeIn 0.3s ease-in; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
     .skeleton { animation: skeleton-loading 1s linear infinite alternate; }
     @keyframes skeleton-loading { 0% { background-color: #e0e0e0; } 100% { background-color: #f0f0f0; } }
+    
+    /* Toast Notification Styles */
+    .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+    .toast { padding: 16px 24px; border-radius: 8px; color: white; font-weight: 600; animation: slideIn 0.3s ease-out; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .toast-success { background-color: #10b981; }
+    .toast-error { background-color: #ef4444; }
+    .toast-info { background-color: #3b82f6; }
+    @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    /* Modal accessibility */
+    .modal-overlay { backdrop-filter: blur(2px); }
+    
+    /* Better button focus for accessibility */
+    button:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
   </style>
 </head>
 <body class="bg-[#eef1f3]">
 <div id="root"></div>
 <script src="data.js"></script>
 <script>
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
+// ==================== UTILITIES ====================
 const formatNumber = (num) => num ? num.toLocaleString("en-US") : "";
 const parseNumber = (val) => Number(val.replace(/[^0-9]/g, "")) || 0;
 
+// ==================== TOAST NOTIFICATIONS ====================
+let toastId = 0;
+function Toast({ message, type = "success", duration = 3000, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, duration);
+    return () => clearTimeout(timer);
+  }, [duration, onClose]);
+
+  return React.createElement("div", { className: `toast toast-${type}` }, message);
+}
+
+// Toast manager hook
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback((message, type = "success", duration = 3000) => {
+    const id = toastId++;
+    setToasts(prev => [...prev, { id, message, type, duration }]);
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  return { toasts, showToast, removeToast };
+}
+
+// ==================== FAVORITES MANAGEMENT ====================
 const getFavorites = () => {
-  const stored = localStorage.getItem("dosclose_favorites");
-  return stored ? JSON.parse(stored) : [];
+  try {
+    const stored = localStorage.getItem("dosclose_favorites");
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error("Error reading favorites:", e);
+    return [];
+  }
 };
 
 const addFavorite = (item) => {
-  const favorites = getFavorites();
-  if (!favorites.find(f => f.name === item.name && f.type === item.type)) {
-    favorites.push({ ...item, type: item.type });
-    localStorage.setItem("dosclose_favorites", JSON.stringify(favorites));
+  try {
+    const favorites = getFavorites();
+    if (!favorites.find(f => f.name === item.name && f.type === item.type)) {
+      favorites.push({ ...item, type: item.type });
+      localStorage.setItem("dosclose_favorites", JSON.stringify(favorites));
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error("Error adding favorite:", e);
+    return false;
   }
 };
 
 const removeFavorite = (name, type) => {
-  const favorites = getFavorites().filter(f => !(f.name === name && f.type === type));
-  localStorage.setItem("dosclose_favorites", JSON.stringify(favorites));
+  try {
+    const favorites = getFavorites().filter(f => !(f.name === name && f.type === type));
+    localStorage.setItem("dosclose_favorites", JSON.stringify(favorites));
+  } catch (e) {
+    console.error("Error removing favorite:", e);
+  }
 };
 
+const isFavorite = (name, type) => {
+  const favorites = getFavorites();
+  return favorites.some(f => f.name === name && f.type === type);
+};
+
+// ==================== SHARE FUNCTIONALITY ====================
 const generateShareLink = (machine, grinder, budget) => {
   const data = btoa(JSON.stringify({ machine: machine?.name, grinder: grinder?.name, budget }));
   return `${window.location.origin}${window.location.pathname}?shared=${data}`;
@@ -50,6 +122,8 @@ const generateShareLink = (machine, grinder, budget) => {
 const generateQRCode = (text) => {
   return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(text)}`;
 };
+
+// ==================== COMPONENTS ====================
 
 function LoadingSkeleton() {
   return React.createElement("div", { className: "max-w-6xl mx-auto p-10" },
@@ -68,21 +142,48 @@ function ErrorFallback({ message, onRetry }) {
       React.createElement("p", { className: "text-4xl mb-4" }, "⚠️"),
       React.createElement("h2", { className: "text-2xl font-bold text-red-700 mb-2" }, "Oops! Something went wrong"),
       React.createElement("p", { className: "text-red-600 mb-6" }, message || "Failed to load products. Please try again."),
-      React.createElement("button", { onClick: onRetry, className: "bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition" }, "🔄 Retry")
+      React.createElement("button", { onClick: onRetry, className: "bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition focus:ring-2 focus:ring-offset-2 focus:ring-red-600" }, "🔄 Retry")
     )
   );
 }
 
-function ProductModal({ item, isMachine, onClose }) {
+function ProductModal({ item, isMachine, onClose, showToast }) {
   if (!item) return null;
 
-  return React.createElement("div", { className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 fade-in" },
-    React.createElement("div", { className: "bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" },
-      React.createElement("button", { onClick: onClose, className: "sticky top-4 right-4 float-right bg-gray-200 hover:bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center z-10" }, "✕"),
-      item.imageUrl && React.createElement("img", { src: item.imageUrl, alt: item.name, className: "w-full h-80 object-cover", onError: (e) => e.target.style.display = "none" }),
+  const handleEscapeKey = useCallback((e) => {
+    if (e.key === "Escape") onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleEscapeKey);
+    return () => document.removeEventListener("keydown", handleEscapeKey);
+  }, [handleEscapeKey]);
+
+  return React.createElement("div", { 
+    className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 fade-in modal-overlay",
+    onClick: onClose,
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-labelledby": "modal-title"
+  },
+    React.createElement("div", { 
+      className: "bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto",
+      onClick: (e) => e.stopPropagation()
+    },
+      React.createElement("button", { 
+        onClick: onClose, 
+        className: "sticky top-4 right-4 float-right bg-gray-200 hover:bg-gray-300 rounded-full w-10 h-10 flex items-center justify-center z-10 transition focus:ring-2 focus:ring-offset-2 focus:ring-gray-400",
+        "aria-label": "Close modal"
+      }, "✕"),
+      item.imageUrl && React.createElement("img", { 
+        src: item.imageUrl, 
+        alt: item.name, 
+        className: "w-full h-80 object-cover", 
+        onError: (e) => { e.target.style.display = "none"; }
+      }),
       React.createElement("div", { className: "p-8" },
         React.createElement("div", { className: "mb-6" },
-          React.createElement("h2", { className: "text-3xl font-bold text-gray-900 mb-2" }, item.name),
+          React.createElement("h2", { id: "modal-title", className: "text-3xl font-bold text-gray-900 mb-2" }, item.name),
           React.createElement("p", { className: "text-lg text-gray-600" }, item.brand)
         ),
         React.createElement("div", { className: "grid grid-cols-2 gap-4 mb-6" },
@@ -99,11 +200,11 @@ function ProductModal({ item, isMachine, onClose }) {
         React.createElement("div", { className: "mb-6" },
           React.createElement("h3", { className: "text-lg font-bold text-gray-900 mb-4" }, "Specifications"),
           React.createElement("div", { className: "grid grid-cols-2 gap-4" },
-            React.createElement("div", null,
+            item.power && React.createElement("div", null,
               React.createElement("p", { className: "text-sm text-gray-500" }, "Power"),
               React.createElement("p", { className: "font-semibold" }, `${formatNumber(item.power)} W`)
             ),
-            React.createElement("div", null,
+            item.madeIn && React.createElement("div", null,
               React.createElement("p", { className: "text-sm text-gray-500" }, "Made In"),
               React.createElement("p", { className: "font-semibold" }, item.madeIn)
             ),
@@ -149,69 +250,118 @@ function ProductModal({ item, isMachine, onClose }) {
           React.createElement("h3", { className: "text-lg font-bold text-gray-900 mb-2" }, "Features"),
           React.createElement("p", { className: "text-gray-700" }, item.features)
         ),
-        React.createElement("a", {
-          href: `https://wa.me/6285282704370?text=Hi!, I'm interested in this ${isMachine ? 'coffee machine' : 'grinder'}:%0A${item.name} by ${item.brand}`,
-          target: "_blank",
-          className: "block w-full bg-green-500 text-white text-center py-3 rounded-lg font-semibold hover:bg-green-600 transition"
-        }, "💬 Ask on WhatsApp")
+        React.createElement("div", { className: "grid grid-cols-2 gap-3" },
+          React.createElement("button", { 
+            onClick: () => {
+              if (addFavorite({ ...item, type: isMachine ? 'machine' : 'grinder' })) {
+                showToast("❤️ Added to favorites!", "success");
+              } else {
+                showToast("Already in favorites", "info");
+              }
+            },
+            className: "bg-red-50 text-red-600 py-2 rounded-lg font-semibold hover:bg-red-100 transition border border-red-200"
+          }, "❤️ Favorite"),
+          React.createElement("a", {
+            href: `https://wa.me/6285282704370?text=Hi!, I'm interested in this ${isMachine ? 'coffee machine' : 'grinder'}:%0A${item.name} by ${item.brand}`,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            className: "block bg-green-500 text-white text-center py-2 rounded-lg font-semibold hover:bg-green-600 transition"
+          }, "💬 WhatsApp")
+        )
       )
     )
   );
+}
+
+function BackButton({ onBack }) {
+  return React.createElement("button", { 
+    onClick: onBack, 
+    className: "mb-6 flex items-center gap-2 underline text-gray-700 hover:text-black transition focus:ring-2 focus:ring-offset-2 focus:ring-gray-700 rounded px-1",
+    "aria-label": "Go back to home"
+  }, "← Back");
 }
 
 function Home({ goToRecommend, goToCompare, goToBrowse, goToFavorites }) {
   return React.createElement("div", { className: "text-center fade-in" },
     React.createElement("div", { className: "py-10" },
-      React.createElement("img", { src: "logo.png", className: "mx-auto w-[90%] md:w-[420px]", style: { maxWidth: "90%", height: "auto" } })
+      React.createElement("img", { src: "logo.png", className: "mx-auto w-[90%] md:w-[420px]", alt: "DoseClose Logo", style: { maxWidth: "90%", height: "auto" } })
     ),
     React.createElement("div", { className: "bg-[#b8a999] rounded-3xl py-20 px-10 max-w-4xl mx-auto mb-10" },
       React.createElement("p", { className: "text-lg text-gray-900" }, "Find your perfect coffee setup without confusion. Just input your budget and let us guide you.")
     ),
-    React.createElement("div", { className: "flex flex-col md:flex-row justify-center gap-6 pb-20 px-4" },
-      React.createElement("button", { onClick: goToRecommend, className: "bg-black text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-gray-800 transition" }, "💡 Recommend Me!"),
-      React.createElement("button", { onClick: goToCompare, className: "bg-black text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-gray-800 transition" }, "⚖️ Let's Compare!"),
-      React.createElement("button", { onClick: goToBrowse, className: "bg-black text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-gray-800 transition" }, "🔍 Browse All"),
-      React.createElement("button", { onClick: goToFavorites, className: "bg-red-600 text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-red-700 transition" }, "❤️ Favorites")
+    React.createElement("div", { className: "flex flex-col md:flex-row justify-center gap-4 pb-20 px-4 flex-wrap" },
+      React.createElement("button", { onClick: goToRecommend, className: "flex-1 min-w-[200px] bg-gradient-to-r from-black to-gray-800 text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:shadow-lg transition" }, "💡 Recommend Me!"),
+      React.createElement("button", { onClick: goToCompare, className: "flex-1 min-w-[200px] bg-black text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-gray-800 transition" }, "⚖️ Compare"),
+      React.createElement("button", { onClick: goToBrowse, className: "flex-1 min-w-[200px] bg-black text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-gray-800 transition" }, "🔍 Browse"),
+      React.createElement("button", { onClick: goToFavorites, className: "flex-1 min-w-[200px] bg-red-600 text-white px-8 py-4 rounded-2xl text-lg font-semibold hover:bg-red-700 transition" }, "❤️ Favorites")
     )
   );
 }
 
-function FavoritesPage() {
+function FavoritesPage({ onBack, showToast }) {
   const [favorites, setFavorites] = useState(getFavorites());
   const [modalItem, setModalItem] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const removeFav = (name, type) => {
     removeFavorite(name, type);
     setFavorites(getFavorites());
+    showToast("Removed from favorites", "info");
+    setConfirmDelete(null);
   };
 
   return React.createElement("div", { className: "p-10 max-w-6xl mx-auto fade-in" },
-    React.createElement("button", { onClick: () => location.reload(), className: "mb-6 underline text-gray-700 hover:text-black transition" }, "← Back"),
+    React.createElement(BackButton, { onBack }),
     React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, `❤️ Your Favorites (${favorites.length})`),
-    favorites.length === 0 ? React.createElement("div", { className: "text-center py-12 text-gray-500" },
-      React.createElement("p", { className: "text-lg mb-4" }, "No favorites yet!"),
-      React.createElement("p", { className: "text-sm" }, "Start adding items to your wishlist.")
+    favorites.length === 0 ? React.createElement("div", { className: "text-center py-16 text-gray-500" },
+      React.createElement("p", { className: "text-xl mb-2" }, "No favorites yet!"),
+      React.createElement("p", { className: "text-sm" }, "Start exploring and adding items to your wishlist.")
     ) : React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" },
       favorites.map(item =>
-        React.createElement("div", { key: `${item.name}-${item.type}`, className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition fade-in cursor-pointer" },
-          React.createElement("div", { onClick: () => setModalItem(item) },
-            item.imageUrl && React.createElement("img", { src: item.imageUrl, alt: item.name, className: "w-full h-48 object-cover", onError: (e) => e.target.style.display = "none" }),
-            React.createElement("div", { className: "p-4" },
+        React.createElement("div", { key: `${item.name}-${item.type}`, className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition fade-in" },
+          React.createElement("div", { 
+            onClick: () => setModalItem(item),
+            className: "cursor-pointer h-full flex flex-col"
+          },
+            item.imageUrl && React.createElement("img", { src: item.imageUrl, alt: item.name, className: "w-full h-48 object-cover", onError: (e) => { e.target.style.display = "none"; } }),
+            React.createElement("div", { className: "p-4 flex-1 flex flex-col" },
               React.createElement("h3", { className: "font-bold text-lg text-gray-900 mb-1" }, item.name),
               React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, item.brand),
-              React.createElement("p", { className: "text-2xl font-bold text-green-600 mb-3" }, `Rp ${formatNumber(item.price)}`),
-              React.createElement("p", { className: "text-xs text-gray-500 mb-3" }, `${item.type === 'machine' ? '☕ Machine' : '⚙️ Grinder'}`)
+              React.createElement("p", { className: "text-2xl font-bold text-green-600 mb-3 mt-auto" }, `Rp ${formatNumber(item.price)}`),
+              React.createElement("p", { className: "text-xs text-gray-500" }, `${item.type === 'machine' ? '☕ Machine' : '⚙️ Grinder'}`)
             )
           ),
-          React.createElement("button", { onClick: (e) => { e.stopPropagation(); removeFav(item.name, item.type); }, className: "w-full bg-red-100 text-red-600 py-2 hover:bg-red-200 transition font-semibold" }, "Remove from Favorites")
+          React.createElement("button", { 
+            onClick: () => setConfirmDelete(`${item.name}-${item.type}`),
+            className: "w-full bg-red-100 text-red-600 py-2 hover:bg-red-200 transition font-semibold border-t border-gray-200"
+          }, "🗑️ Remove")
         )
       )
     ),
-    modalItem && React.createElement(ProductModal, { item: modalItem, isMachine: modalItem.type === 'machine', onClose: () => setModalItem(null) })
+    confirmDelete && React.createElement("div", { className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" },
+      React.createElement("div", { className: "bg-white rounded-2xl p-6 max-w-sm" },
+        React.createElement("h3", { className: "text-lg font-bold mb-4" }, "Remove from Favorites?"),
+        React.createElement("p", { className: "text-gray-600 mb-6" }, "Are you sure you want to remove this item?"),
+        React.createElement("div", { className: "flex gap-3" },
+          React.createElement("button", { 
+            onClick: () => setConfirmDelete(null),
+            className: "flex-1 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition font-semibold"
+          }, "Cancel"),
+          React.createElement("button", { 
+            onClick: () => {
+              const [name, type] = confirmDelete.split('-');
+              removeFav(name, type);
+            },
+            className: "flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold"
+          }, "Remove")
+        )
+      )
+    ),
+    modalItem && React.createElement(ProductModal, { item: modalItem, isMachine: modalItem.type === 'machine', onClose: () => setModalItem(null), showToast })
   );
 }
 
-function RecommendationPage({ machines, grinders }) {
+function RecommendationPage({ machines, grinders, onBack, showToast }) {
   const [budgetInput, setBudgetInput] = useState("");
   const [budget, setBudget] = useState(0);
   const [machinePct, setMachinePct] = useState(70);
@@ -219,6 +369,8 @@ function RecommendationPage({ machines, grinders }) {
   const [result, setResult] = useState(null);
   const [showShare, setShowShare] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
 
   const handleBudgetChange = (val) => {
     const num = parseNumber(val);
@@ -238,21 +390,14 @@ function RecommendationPage({ machines, grinders }) {
     return [...items].sort((a, b) => a.price - b.price)[0];
   };
 
-  const handleMachineSliderChange = (val) => {
-    const newMachinePct = Number(val);
-    setMachinePct(newMachinePct);
-    setGrinderPct(100 - newMachinePct);
-  };
-
-  const handleGrinderSliderChange = (val) => {
-    const newGrinderPct = Number(val);
-    setGrinderPct(newGrinderPct);
-    setMachinePct(100 - newGrinderPct);
+  const setAllocationPreset = (machinePct) => {
+    setMachinePct(machinePct);
+    setGrinderPct(100 - machinePct);
   };
 
   const generate = () => {
     if (!budget) {
-      alert("Please insert your budget");
+      showToast("Please enter your budget", "error");
       return;
     }
 
@@ -284,7 +429,7 @@ function RecommendationPage({ machines, grinders }) {
 
       if (budget < minSetup) {
         const diff = minSetup - budget;
-        message = `Sorry, there's no suitable setup within the budget. Add Rp ${formatNumber(diff)} more to get started.`;
+        message = `💰 Add Rp ${formatNumber(diff)} more to get started!`;
       }
 
       machine = machinePct > 0 ? bestMachine : null;
@@ -296,7 +441,7 @@ function RecommendationPage({ machines, grinders }) {
       remaining = budget - totalUsed;
     } else {
       const diff = totalUsed - budget;
-      message = `Add Rp ${formatNumber(diff)} more to get this setup`;
+      message = `⚠️ Add Rp ${formatNumber(diff)} more to get this setup`;
     }
 
     setResult({ machine, grinder, message, remaining });
@@ -305,124 +450,205 @@ function RecommendationPage({ machines, grinders }) {
 
   const copyShareLink = () => {
     const link = generateShareLink(result.machine, result.grinder, budget);
-    navigator.clipboard.writeText(link);
-    setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 2000);
+    navigator.clipboard.writeText(link).then(() => {
+      setCopySuccess(true);
+      showToast("✓ Link copied to clipboard!", "success");
+      setTimeout(() => setCopySuccess(false), 2000);
+    }).catch(() => {
+      showToast("Failed to copy link", "error");
+    });
   };
 
+  // Chart cleanup and update
+  useEffect(() => {
+    if (chartRef.current && result?.machine && result?.grinder) {
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+      }
+
+      const ctx = chartRef.current.getContext("2d");
+      chartInstance.current = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: ["Machine", "Grinder", "Remaining"],
+          datasets: [{
+            data: [result.machine?.price || 0, result.grinder?.price || 0, result.remaining || 0],
+            backgroundColor: ["#1f2937", "#6366f1", "#10b981"],
+            borderColor: "#ffffff",
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { position: "bottom" }
+          }
+        }
+      });
+    }
+
+    return () => {
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+      }
+    };
+  }, [result]);
+
   return React.createElement("div", { className: "p-10 max-w-3xl mx-auto fade-in" },
-    React.createElement("button", { onClick: () => location.reload(), className: "mb-6 underline text-gray-700 hover:text-black transition" }, "← Back"),
-    React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "Get Recommended Setup"),
+    React.createElement(BackButton, { onBack }),
+    React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "💡 Get Recommended Setup"),
     React.createElement("div", { className: "mb-6" },
       React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Your Budget"),
       React.createElement("div", { className: "flex" },
         React.createElement("span", { className: "bg-[#b8a999] px-4 py-3 font-semibold" }, "Rp"),
-        React.createElement("input", { type: "text", value: budgetInput, placeholder: "e.g., 5000000", onChange: (e) => handleBudgetChange(e.target.value), className: "w-full p-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black" })
+        React.createElement("input", { 
+          type: "text", 
+          value: budgetInput, 
+          placeholder: "e.g., 5000000", 
+          onChange: (e) => handleBudgetChange(e.target.value), 
+          className: "w-full p-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black",
+          inputMode: "numeric"
+        })
       ),
-      React.createElement("p", { className: "text-xs text-gray-500 mt-1" }, "Only numbers allowed")
+      React.createElement("p", { className: "text-xs text-gray-500 mt-1" }, "💡 Tip: Only numbers allowed")
     ),
     React.createElement("div", { className: "mb-8 bg-gray-50 p-6 rounded-xl" },
-      React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-6" }, "Adjust budget allocation (total: 100%)"),
+      React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-4" }, "📊 Quick Presets"),
+      React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-2 mb-6" },
+        React.createElement("button", { 
+          onClick: () => setAllocationPreset(50),
+          className: `p-2 text-sm font-semibold rounded-lg transition ${machinePct === 50 ? "bg-black text-white" : "bg-white border border-gray-300 hover:bg-gray-100"}`
+        }, "⚖️ Balanced (50/50)"),
+        React.createElement("button", { 
+          onClick: () => setAllocationPreset(70),
+          className: `p-2 text-sm font-semibold rounded-lg transition ${machinePct === 70 ? "bg-black text-white" : "bg-white border border-gray-300 hover:bg-gray-100"}`
+        }, "☕ Machine First (70/30)"),
+        React.createElement("button", { 
+          onClick: () => setAllocationPreset(30),
+          className: `p-2 text-sm font-semibold rounded-lg transition ${machinePct === 30 ? "bg-black text-white" : "bg-white border border-gray-300 hover:bg-gray-100"}`
+        }, "⚙️ Grinder First (30/70)"),
+        React.createElement("button", { 
+          onClick: () => setAllocationPreset(100),
+          className: `p-2 text-sm font-semibold rounded-lg transition ${machinePct === 100 ? "bg-black text-white" : "bg-white border border-gray-300 hover:bg-gray-100"}`
+        }, "☕ Machine Only (100/0)")
+      ),
+      React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-6 border-t pt-6" }, "🎯 Custom Allocation (total: 100%)"),
       React.createElement("div", { className: "mb-6" },
         React.createElement("div", { className: "flex justify-between items-center mb-2" },
           React.createElement("label", { className: "text-sm font-semibold text-gray-700" }, "☕ Machine"),
-          React.createElement("div", { className: "flex items-center gap-2" },
-            React.createElement("span", { className: "bg-black text-white px-3 py-1 rounded-lg font-bold text-sm" }, `${machinePct}%`),
-            machinePct === 0 && React.createElement("span", { className: "text-xs text-gray-500" }, "(optional)")
-          )
+          React.createElement("span", { className: "bg-black text-white px-3 py-1 rounded-lg font-bold text-sm" }, `${machinePct}%`)
         ),
-        React.createElement("input", { type: "range", min: 0, max: 100, value: machinePct, onChange: (e) => handleMachineSliderChange(e.target.value), className: "w-full" })
+        React.createElement("input", { 
+          type: "range", 
+          min: 0, 
+          max: 100, 
+          value: machinePct, 
+          onChange: (e) => { const val = Number(e.target.value); setMachinePct(val); setGrinderPct(100 - val); },
+          className: "w-full accent-black"
+        })
       ),
       React.createElement("div", null,
         React.createElement("div", { className: "flex justify-between items-center mb-2" },
           React.createElement("label", { className: "text-sm font-semibold text-gray-700" }, "⚙️ Grinder"),
-          React.createElement("div", { className: "flex items-center gap-2" },
-            React.createElement("span", { className: "bg-black text-white px-3 py-1 rounded-lg font-bold text-sm" }, `${grinderPct}%`),
-            grinderPct === 0 && React.createElement("span", { className: "text-xs text-gray-500" }, "(optional)")
-          )
+          React.createElement("span", { className: "bg-black text-white px-3 py-1 rounded-lg font-bold text-sm" }, `${grinderPct}%`)
         ),
-        React.createElement("input", { type: "range", min: 0, max: 100, value: grinderPct, onChange: (e) => handleGrinderSliderChange(e.target.value), className: "w-full" })
+        React.createElement("input", { 
+          type: "range", 
+          min: 0, 
+          max: 100, 
+          value: grinderPct, 
+          onChange: (e) => { const val = Number(e.target.value); setGrinderPct(val); setMachinePct(100 - val); },
+          className: "w-full accent-black"
+        })
       )
     ),
-    React.createElement("button", { onClick: generate, className: "bg-black text-white w-full py-4 rounded-xl font-bold text-lg mb-8 hover:bg-gray-800 transition" }, "Generate Recommendation"),
+    React.createElement("button", { 
+      onClick: generate, 
+      className: "bg-black text-white w-full py-4 rounded-xl font-bold text-lg mb-8 hover:bg-gray-800 transition focus:ring-2 focus:ring-offset-2 focus:ring-black"
+    }, "✨ Generate Recommendation"),
     result && React.createElement("div", { className: "p-8 bg-white rounded-2xl shadow-lg fade-in" },
-      result.message && React.createElement("div", { className: result.message.includes("Sorry") ? "text-red-500 mb-6 p-4 bg-red-50 rounded-lg" : "text-orange-600 mb-6 p-4 bg-orange-50 rounded-lg" }, result.message),
+      result.message && React.createElement("div", { className: result.message.includes("Add") ? "text-orange-600 mb-6 p-4 bg-orange-50 rounded-lg" : "text-green-600 mb-6 p-4 bg-green-50 rounded-lg" }, result.message),
       React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" },
         React.createElement("div", { className: "border border-gray-200 rounded-lg p-4" },
-          React.createElement("p", { className: "text-sm text-gray-500 mb-2" }, "Coffee Machine"),
+          React.createElement("p", { className: "text-sm text-gray-500 mb-2" }, "☕ Coffee Machine"),
           result.machine ? React.createElement("div", null,
-            result.machine.imageUrl && React.createElement("img", { src: result.machine.imageUrl, alt: result.machine.name, className: "w-full h-40 object-cover rounded mb-3", onError: (e) => e.target.style.display = "none" }),
+            result.machine.imageUrl && React.createElement("img", { src: result.machine.imageUrl, alt: result.machine.name, className: "w-full h-40 object-cover rounded mb-3", onError: (e) => { e.target.style.display = "none"; } }),
             React.createElement("p", { className: "font-bold text-lg text-gray-900 mb-1" }, result.machine.name),
             React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, result.machine.brand),
-            React.createElement("p", { className: "text-xl font-bold text-green-600" }, `Rp ${formatNumber(result.machine.price)}`),
-            React.createElement("p", { className: "text-sm text-gray-500 mt-2" }, `Power: ${formatNumber(result.machine.power)} W`),
-            React.createElement("button", { onClick: () => { addFavorite({ ...result.machine, type: 'machine' }); alert("Added to favorites! ❤️"); }, className: "mt-3 w-full bg-red-50 text-red-600 py-2 rounded hover:bg-red-100 transition text-sm font-semibold" }, "❤️ Add to Favorites")
+            React.createElement("p", { className: "text-xl font-bold text-green-600 mb-3" }, `Rp ${formatNumber(result.machine.price)}`),
+            React.createElement("button", { 
+              onClick: () => {
+                if (addFavorite({ ...result.machine, type: 'machine' })) {
+                  showToast("❤️ Added to favorites!", "success");
+                } else {
+                  showToast("Already in favorites", "info");
+                }
+              },
+              className: "w-full bg-red-50 text-red-600 py-2 rounded hover:bg-red-100 transition text-sm font-semibold border border-red-200"
+            }, "❤️ Add to Favorites")
           ) : React.createElement("p", { className: "text-gray-500" }, "Not required for your setup")
         ),
         React.createElement("div", { className: "border border-gray-200 rounded-lg p-4" },
-          React.createElement("p", { className: "text-sm text-gray-500 mb-2" }, "Grinder"),
+          React.createElement("p", { className: "text-sm text-gray-500 mb-2" }, "⚙️ Grinder"),
           result.grinder ? React.createElement("div", null,
-            result.grinder.imageUrl && React.createElement("img", { src: result.grinder.imageUrl, alt: result.grinder.name, className: "w-full h-40 object-cover rounded mb-3", onError: (e) => e.target.style.display = "none" }),
+            result.grinder.imageUrl && React.createElement("img", { src: result.grinder.imageUrl, alt: result.grinder.name, className: "w-full h-40 object-cover rounded mb-3", onError: (e) => { e.target.style.display = "none"; } }),
             React.createElement("p", { className: "font-bold text-lg text-gray-900 mb-1" }, result.grinder.name),
             React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, result.grinder.brand),
-            React.createElement("p", { className: "text-xl font-bold text-green-600" }, `Rp ${formatNumber(result.grinder.price)}`),
-            React.createElement("p", { className: "text-sm text-gray-500 mt-2" }, `Power: ${formatNumber(result.grinder.power)} W`),
-            React.createElement("button", { onClick: () => { addFavorite({ ...result.grinder, type: 'grinder' }); alert("Added to favorites! ❤️"); }, className: "mt-3 w-full bg-red-50 text-red-600 py-2 rounded hover:bg-red-100 transition text-sm font-semibold" }, "❤️ Add to Favorites")
+            React.createElement("p", { className: "text-xl font-bold text-green-600 mb-3" }, `Rp ${formatNumber(result.grinder.price)}`),
+            React.createElement("button", { 
+              onClick: () => {
+                if (addFavorite({ ...result.grinder, type: 'grinder' })) {
+                  showToast("❤️ Added to favorites!", "success");
+                } else {
+                  showToast("Already in favorites", "info");
+                }
+              },
+              className: "w-full bg-red-50 text-red-600 py-2 rounded hover:bg-red-100 transition text-sm font-semibold border border-red-200"
+            }, "❤️ Add to Favorites")
           ) : React.createElement("p", { className: "text-gray-500" }, "Not required for your setup")
         )
       ),
       result.remaining > 0 && React.createElement("div", { className: "bg-green-50 border border-green-200 p-4 rounded-lg mb-6" },
-        React.createElement("p", { className: "text-green-700 font-semibold" }, `✓ You still have Rp ${formatNumber(result.remaining)} remaining`)
+        React.createElement("p", { className: "text-green-700 font-semibold" }, `✅ You still have Rp ${formatNumber(result.remaining)} remaining`)
       ),
       (result.machine || result.grinder) && React.createElement("div", { className: "bg-gray-50 p-6 rounded-lg mb-6" },
-        React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-4" }, "Budget Breakdown"),
-        React.createElement("canvas", {
-          ref: (canvas) => {
-            if (canvas && result.machine && result.grinder) {
-              const chartInstance = canvas.chartInstance;
-              if (chartInstance) chartInstance.destroy();
-              const ctx = canvas.getContext("2d");
-              const newChart = new Chart(ctx, {
-                type: "doughnut",
-                data: {
-                  labels: ["Machine", "Grinder", "Remaining"],
-                  datasets: [{
-                    data: [result.machine?.price || 0, result.grinder?.price || 0, result.remaining || 0],
-                    backgroundColor: ["#1f2937", "#6366f1", "#10b981"],
-                    borderColor: "#ffffff",
-                    borderWidth: 2
-                  }]
-                },
-                options: { responsive: true, plugins: { legend: { position: "bottom" } } }
-              });
-              canvas.chartInstance = newChart;
-            }
-          },
-          className: "max-w-sm mx-auto"
-        })
+        React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-4" }, "📊 Budget Breakdown"),
+        React.createElement("canvas", { ref: chartRef, className: "max-w-sm mx-auto" })
       ),
       React.createElement("div", { className: "mb-6" },
-        React.createElement("button", { onClick: () => setShowShare(!showShare), className: "w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition" }, "🔗 Share This Setup"),
+        React.createElement("button", { 
+          onClick: () => setShowShare(!showShare), 
+          className: "w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition focus:ring-2 focus:ring-offset-2 focus:ring-blue-600"
+        }, showShare ? "🔗 Hide Share" : "🔗 Share This Setup"),
         showShare && React.createElement("div", { className: "mt-4 space-y-3" },
           React.createElement("div", { className: "bg-gray-50 p-4 rounded-lg" },
             React.createElement("p", { className: "text-xs text-gray-600 mb-2" }, "Share Link:"),
             React.createElement("div", { className: "flex gap-2" },
-              React.createElement("input", { type: "text", value: generateShareLink(result.machine, result.grinder, budget), readOnly: true, className: "flex-1 p-2 border border-gray-300 rounded text-sm bg-white" }),
-              React.createElement("button", { onClick: copyShareLink, className: `px-4 py-2 rounded font-semibold transition ${copySuccess ? "bg-green-600 text-white" : "bg-gray-300 text-black hover:bg-gray-400"}` }, copySuccess ? "✓ Copied" : "Copy")
+              React.createElement("input", { type: "text", value: generateShareLink(result.machine, result.grinder, budget), readOnly: true, className: "flex-1 p-2 border border-gray-300 rounded text-sm bg-white", onClick: (e) => e.target.select() }),
+              React.createElement("button", { 
+                onClick: copyShareLink, 
+                className: `px-4 py-2 rounded font-semibold transition ${copySuccess ? "bg-green-600 text-white" : "bg-gray-300 text-black hover:bg-gray-400"}`
+              }, copySuccess ? "✓ Copied" : "Copy")
             )
           ),
           React.createElement("div", { className: "p-4 bg-gray-50 rounded-lg text-center" },
-            React.createElement("p", { className: "text-xs text-gray-600 mb-2" }, "QR Code:"),
+            React.createElement("p", { className: "text-xs text-gray-600 mb-2" }, "📱 QR Code:"),
             React.createElement("img", { src: generateQRCode(generateShareLink(result.machine, result.grinder, budget)), alt: "QR Code", className: "mx-auto w-40 h-40" })
           )
         )
       ),
-      React.createElement("a", { href: `https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine?.name || "-"}%0AGrinder: ${result.grinder?.name || "-"}`, target: "_blank", className: "block w-full bg-green-500 text-white text-center py-3 rounded-lg font-semibold hover:bg-green-600 transition" }, "💬 Discuss via WhatsApp")
+      React.createElement("a", { 
+        href: `https://wa.me/6285282704370?text=Hi!, can you give me more info about this setup?%0ACoffee Machine: ${result.machine?.name || "-"}%0AGrinder: ${result.grinder?.name || "-"}`, 
+        target: "_blank",
+        rel: "noopener noreferrer",
+        className: "block w-full bg-green-500 text-white text-center py-3 rounded-lg font-semibold hover:bg-green-600 transition"
+      }, "💬 Discuss via WhatsApp")
     )
   );
 }
 
-function ComparePage({ machines, grinders }) {
+function ComparePage({ machines, grinders, onBack, showToast }) {
   const [type, setType] = useState("machine");
   const [itemA, setItemA] = useState(null);
   const [itemB, setItemB] = useState(null);
@@ -433,7 +659,7 @@ function ComparePage({ machines, grinders }) {
 
   const handleCompare = () => {
     if (!itemA || !itemB) {
-      alert("Please select both products");
+      showToast("Please select both products", "error");
       return;
     }
     setShow(true);
@@ -443,7 +669,7 @@ function ComparePage({ machines, grinders }) {
     if (!item) return null;
 
     return React.createElement("div", {
-      className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 fade-in cursor-pointer hover:shadow-xl transition",
+      className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 fade-in hover:shadow-xl transition cursor-pointer",
       onClick: () => setModalItem(item)
     },
       item.imageUrl && React.createElement("div", { className: "w-full h-64 bg-gray-100 overflow-hidden flex items-center justify-center" },
@@ -467,11 +693,11 @@ function ComparePage({ machines, grinders }) {
             React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Rating"),
             React.createElement("p", { className: "font-semibold" }, `⭐ ${item.rating} (${item.reviewCount || 0} reviews)`)
           ),
-          React.createElement("div", null,
+          item.power && React.createElement("div", null,
             React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Power"),
             React.createElement("p", { className: "font-semibold" }, `${formatNumber(item.power)} W`)
           ),
-          React.createElement("div", null,
+          item.madeIn && React.createElement("div", null,
             React.createElement("p", { className: "text-sm text-gray-500 mb-1" }, "Made In"),
             React.createElement("p", { className: "font-semibold" }, item.madeIn)
           ),
@@ -520,20 +746,27 @@ function ComparePage({ machines, grinders }) {
       React.createElement("button", {
         onClick: (e) => {
           e.stopPropagation();
-          addFavorite({ ...item, type: isMachine ? 'machine' : 'grinder' });
-          alert("Added to favorites! ❤️");
+          if (addFavorite({ ...item, type: isMachine ? 'machine' : 'grinder' })) {
+            showToast("❤️ Added to favorites!", "success");
+          } else {
+            showToast("Already in favorites", "info");
+          }
         },
-        className: "w-full bg-red-50 text-red-600 py-2 hover:bg-red-100 transition font-semibold"
+        className: "w-full bg-red-50 text-red-600 py-2 hover:bg-red-100 transition font-semibold border-t border-gray-200"
       }, "❤️ Add to Favorites")
     );
   };
 
   return React.createElement("div", { className: "p-10 max-w-7xl mx-auto fade-in" },
-    React.createElement("button", { onClick: () => location.reload(), className: "mb-6 underline text-gray-700 hover:text-black transition" }, "← Back"),
-    React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "Compare Products"),
+    React.createElement(BackButton, { onBack }),
+    React.createElement("h2", { className: "text-3xl font-bold mb-8 text-gray-900" }, "⚖️ Compare Products"),
     React.createElement("div", { className: "mb-8" },
       React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Product Type"),
-      React.createElement("select", { value: type, onChange: (e) => { setType(e.target.value); setItemA(null); setItemB(null); setShow(false); }, className: "w-full p-3 border border-gray-300 rounded-lg bg-white font-semibold" },
+      React.createElement("select", { 
+        value: type, 
+        onChange: (e) => { setType(e.target.value); setItemA(null); setItemB(null); setShow(false); }, 
+        className: "w-full p-3 border border-gray-300 rounded-lg bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-black"
+      },
         React.createElement("option", { value: "machine" }, "☕ Coffee Machine"),
         React.createElement("option", { value: "grinder" }, "⚙️ Grinder")
       )
@@ -541,26 +774,37 @@ function ComparePage({ machines, grinders }) {
     React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6 mb-8" },
       React.createElement("div", null,
         React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Option A"),
-        React.createElement("select", { className: "w-full p-3 border border-gray-300 rounded-lg", value: itemA?.name || "", onChange: (e) => { const selected = data.find(d => d.name === e.target.value); setItemA(selected); } },
+        React.createElement("select", { 
+          className: "w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black",
+          value: itemA?.name || "", 
+          onChange: (e) => { const selected = data.find(d => d.name === e.target.value); setItemA(selected); }
+        },
           React.createElement("option", { value: "" }, "-- Choose Product --"),
           data.map(item => React.createElement("option", { key: item.name, value: item.name, disabled: itemB && item.name === itemB.name }, item.name))
         )
       ),
       React.createElement("div", null,
         React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Option B"),
-        React.createElement("select", { className: "w-full p-3 border border-gray-300 rounded-lg", value: itemB?.name || "", onChange: (e) => { const selected = data.find(d => d.name === e.target.value); setItemB(selected); } },
+        React.createElement("select", { 
+          className: "w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black",
+          value: itemB?.name || "", 
+          onChange: (e) => { const selected = data.find(d => d.name === e.target.value); setItemB(selected); }
+        },
           React.createElement("option", { value: "" }, "-- Choose Product --"),
           data.map(item => React.createElement("option", { key: item.name, value: item.name, disabled: itemA && item.name === itemA.name }, item.name))
         )
       )
     ),
-    React.createElement("button", { onClick: handleCompare, className: "w-full bg-black text-white py-4 rounded-xl font-bold text-lg mb-10 hover:bg-gray-800 transition" }, "Compare"),
+    React.createElement("button", { 
+      onClick: handleCompare, 
+      className: "w-full bg-black text-white py-4 rounded-xl font-bold text-lg mb-10 hover:bg-gray-800 transition focus:ring-2 focus:ring-offset-2 focus:ring-black"
+    }, "Compare"),
     show && React.createElement("div", { className: "grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8" },
       React.createElement(ComparisonCard, { item: itemA, label: "Option A", isMachine: type === "machine" }),
       React.createElement(ComparisonCard, { item: itemB, label: "Option B", isMachine: type === "machine" })
     ),
     show && itemA && itemB && React.createElement("div", { className: "p-6 bg-blue-50 border border-blue-200 rounded-2xl fade-in" },
-      React.createElement("p", { className: "text-sm text-blue-600 mb-2" }, "Price Comparison"),
+      React.createElement("p", { className: "text-sm text-blue-600 mb-2" }, "💰 Price Comparison"),
       React.createElement("p", { className: "text-2xl font-bold text-blue-900 mb-2" }, `Difference: Rp ${formatNumber(Math.abs(itemA.price - itemB.price))}`),
       React.createElement("p", { className: "text-sm text-blue-700" },
         itemA.price < itemB.price 
@@ -570,11 +814,11 @@ function ComparePage({ machines, grinders }) {
           : "They're the same price!"
       )
     ),
-    modalItem && React.createElement(ProductModal, { item: modalItem, isMachine: type === 'machine', onClose: () => setModalItem(null) })
+    modalItem && React.createElement(ProductModal, { item: modalItem, isMachine: type === 'machine', onClose: () => setModalItem(null), showToast })
   );
 }
 
-function BrowsePage({ machines, grinders }) {
+function BrowsePage({ machines, grinders, onBack, showToast }) {
   const [type, setType] = useState("machine");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("price-asc");
@@ -618,6 +862,7 @@ function BrowsePage({ machines, grinders }) {
     setSelectedBrands([]);
     setPriceRange([0, maxPriceValue]);
     setSortBy("price-asc");
+    showToast("Filters reset ✓", "success");
   };
 
   const handleTypeChange = (newType) => {
@@ -628,53 +873,82 @@ function BrowsePage({ machines, grinders }) {
   };
 
   return React.createElement("div", { className: "p-10 max-w-6xl mx-auto fade-in" },
-    React.createElement("button", { onClick: () => location.reload(), className: "mb-6 underline text-gray-700 hover:text-black transition" }, "← Back"),
-    React.createElement("h2", { className: "text-3xl font-bold mb-2 text-gray-900" }, "Browse All Products"),
+    React.createElement(BackButton, { onBack }),
+    React.createElement("h2", { className: "text-3xl font-bold mb-2 text-gray-900" }, "🔍 Browse All Products"),
     React.createElement("p", { className: "text-gray-600 mb-8" }, `Showing ${filtered.length} of ${data.length} ${type === 'machine' ? 'machines' : 'grinders'}`),
     React.createElement("div", { className: "bg-gray-50 p-6 rounded-2xl mb-8" },
       React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" },
         React.createElement("div", null,
           React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Product Type"),
-          React.createElement("select", { value: type, onChange: (e) => handleTypeChange(e.target.value), className: "w-full p-3 border border-gray-300 rounded-lg bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-black" },
+          React.createElement("select", { 
+            value: type, 
+            onChange: (e) => handleTypeChange(e.target.value), 
+            className: "w-full p-3 border border-gray-300 rounded-lg bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-black"
+          },
             React.createElement("option", { value: "machine" }, "☕ Coffee Machines"),
             React.createElement("option", { value: "grinder" }, "⚙️ Grinders")
           )
         ),
         React.createElement("div", null,
           React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Search"),
-          React.createElement("input", { type: "text", placeholder: "Search by name or brand...", value: searchTerm, onChange: (e) => setSearchTerm(e.target.value), className: "w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black" })
+          React.createElement("input", { 
+            type: "text", 
+            placeholder: "Search by name or brand...", 
+            value: searchTerm, 
+            onChange: (e) => setSearchTerm(e.target.value), 
+            className: "w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+          })
         )
       ),
       React.createElement("div", { className: "mb-6" },
         React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, `Max Price (Highest: Rp ${formatNumber(maxPriceValue)})`),
         React.createElement("div", { className: "flex items-center gap-4" },
-          React.createElement("input", { type: "range", min: 0, max: maxPriceValue, step: 100000, value: priceRange[1], onChange: (e) => handlePriceChange(e.target.value), className: "flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-black" }),
+          React.createElement("input", { 
+            type: "range", 
+            min: 0, 
+            max: maxPriceValue, 
+            step: 100000, 
+            value: priceRange[1], 
+            onChange: (e) => handlePriceChange(e.target.value), 
+            className: "flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-black"
+          }),
           React.createElement("div", { className: "bg-black text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap" }, `Rp ${formatNumber(priceRange[1])}`)
         ),
         React.createElement("p", { className: "text-xs text-gray-500 mt-2" }, `Range: Rp 0 - Rp ${formatNumber(maxPriceValue)}`)
       ),
       React.createElement("div", { className: "mb-6" },
         React.createElement("label", { className: "text-sm font-semibold text-gray-700 mb-2 block" }, "Sort By"),
-        React.createElement("select", { value: sortBy, onChange: (e) => setSortBy(e.target.value), className: "w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black" },
+        React.createElement("select", { 
+          value: sortBy, 
+          onChange: (e) => setSortBy(e.target.value), 
+          className: "w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black"
+        },
           React.createElement("option", { value: "price-asc" }, "💰 Price: Low to High"),
           React.createElement("option", { value: "price-desc" }, "💰 Price: High to Low"),
           React.createElement("option", { value: "rating" }, "⭐ Highest Rated"),
           React.createElement("option", { value: "name" }, "ABC Name: A-Z")
         )
       ),
-      React.createElement("button", { onClick: handleResetFilters, className: "w-full bg-gray-400 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 transition" }, "🔄 Reset All Filters")
+      React.createElement("button", { 
+        onClick: handleResetFilters, 
+        className: "w-full bg-gray-400 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 transition focus:ring-2 focus:ring-offset-2 focus:ring-gray-600"
+      }, "🔄 Reset All Filters")
     ),
     allBrands.length > 0 && React.createElement("div", { className: "mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200" },
-      React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-3" }, `Filter by Brand (${selectedBrands.length} selected)`),
+      React.createElement("p", { className: "text-sm font-semibold text-gray-700 mb-3" }, `🏷️ Filter by Brand (${selectedBrands.length} selected)`),
       React.createElement("div", { className: "flex flex-wrap gap-2" },
-        allBrands.map(brand => React.createElement("button", { key: brand, onClick: () => handleBrandToggle(brand), className: `px-4 py-2 rounded-lg text-sm font-semibold transition ${selectedBrands.includes(brand) ? "bg-black text-white shadow-md" : "bg-white border border-gray-300 text-gray-700 hover:border-black hover:bg-gray-50"}` }, brand))
+        allBrands.map(brand => React.createElement("button", { 
+          key: brand, 
+          onClick: () => handleBrandToggle(brand), 
+          className: `px-4 py-2 rounded-lg text-sm font-semibold transition ${selectedBrands.includes(brand) ? "bg-black text-white shadow-md" : "bg-white border border-gray-300 text-gray-700 hover:border-black hover:bg-gray-50"}`
+        }, brand))
       )
     ),
     React.createElement("div", null,
       filtered.length > 0 ? React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" },
         filtered.map(item => React.createElement("div", { key: item.name, className: "bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition fade-in cursor-pointer" },
           React.createElement("div", { onClick: () => setModalItem(item), className: "h-full flex flex-col" },
-            item.imageUrl && React.createElement("img", { src: item.imageUrl, alt: item.name, className: "w-full h-48 object-cover", onError: (e) => e.target.style.display = "none" }),
+            item.imageUrl && React.createElement("img", { src: item.imageUrl, alt: item.name, className: "w-full h-48 object-cover", onError: (e) => { e.target.style.display = "none"; } }),
             React.createElement("div", { className: "p-4 flex-1 flex flex-col" },
               React.createElement("h3", { className: "font-bold text-lg text-gray-900 mb-1" }, item.name),
               React.createElement("p", { className: "text-gray-600 text-sm mb-2" }, item.brand),
@@ -683,14 +957,24 @@ function BrowsePage({ machines, grinders }) {
               React.createElement("p", { className: "text-xs text-gray-500 mb-3" }, `${formatNumber(item.power)} W • ${item.madeIn}`)
             )
           ),
-          React.createElement("button", { onClick: (e) => { e.stopPropagation(); addFavorite({ ...item, type }); alert("Added to favorites! ❤️"); }, className: "w-full bg-red-50 text-red-600 py-2 hover:bg-red-100 transition font-semibold text-sm border-t border-gray-200" }, "❤️ Add to Favorites")
+          React.createElement("button", { 
+            onClick: (e) => { 
+              e.stopPropagation();
+              if (addFavorite({ ...item, type })) {
+                showToast("❤️ Added to favorites!", "success");
+              } else {
+                showToast("Already in favorites", "info");
+              }
+            },
+            className: "w-full bg-red-50 text-red-600 py-2 hover:bg-red-100 transition font-semibold text-sm border-t border-gray-200"
+          }, "❤️ Add to Favorites")
         ))
       ) : React.createElement("div", { className: "text-center py-16 text-gray-500" },
         React.createElement("p", { className: "text-lg mb-2" }, "😕 No products found"),
         React.createElement("p", { className: "text-sm" }, "Try adjusting your filters or search terms")
       )
     ),
-    modalItem && React.createElement(ProductModal, { item: modalItem, isMachine: type === 'machine', onClose: () => setModalItem(null) })
+    modalItem && React.createElement(ProductModal, { item: modalItem, isMachine: type === 'machine', onClose: () => setModalItem(null), showToast })
   );
 }
 
@@ -700,11 +984,23 @@ function App() {
   const [grinders, setGrinders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { toasts, showToast, removeToast } = useToast();
 
   useEffect(() => {
     setLoading(true);
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setError("Data loading took too long. Please try again.");
+        setLoading(false);
+      }
+    }, 15000); // 15 second timeout
+
     fetch("https://script.google.com/macros/s/AKfycbwt1UcSPjISrDQnCuDXDzMKt_kplTr2RDf_PE3hkqufn2a266vgwMeIX4SdAr--Lk3vyw/exec")
-      .then(res => { if (!res.ok) throw new Error("Failed to fetch data"); return res.json(); })
+      .then(res => { 
+        clearTimeout(timeout);
+        if (!res.ok) throw new Error("Failed to fetch data"); 
+        return res.json(); 
+      })
       .then(data => {
         if (!Array.isArray(data) || data.length === 0) throw new Error("No data received from server");
         setMachines(data.filter(i => i.type === "machine"));
@@ -712,20 +1008,57 @@ function App() {
         setLoading(false);
       })
       .catch(err => {
+        clearTimeout(timeout);
         console.error("Error loading data:", err);
         setError(err.message);
         setLoading(false);
       });
+
+    return () => clearTimeout(timeout);
   }, []);
 
   if (loading) return React.createElement(LoadingSkeleton);
-  if (error) return React.createElement(ErrorFallback, { message: error, onRetry: () => { setLoading(true); setError(null); window.location.reload(); } });
+  if (error) return React.createElement(ErrorFallback, { message: error, onRetry: () => { setLoading(true); setError(null); } });
 
-  if (page === "home") return React.createElement(Home, { goToRecommend: () => setPage("recommend"), goToCompare: () => setPage("compare"), goToBrowse: () => setPage("browse"), goToFavorites: () => setPage("favorites") });
-  if (page === "favorites") return React.createElement(FavoritesPage);
-  if (page === "recommend") return React.createElement(RecommendationPage, { machines, grinders });
-  if (page === "compare") return React.createElement(ComparePage, { machines, grinders });
-  if (page === "browse") return React.createElement(BrowsePage, { machines, grinders });
+  return React.createElement(React.Fragment, null,
+    page === "home" && React.createElement(Home, { 
+      goToRecommend: () => setPage("recommend"), 
+      goToCompare: () => setPage("compare"), 
+      goToBrowse: () => setPage("browse"), 
+      goToFavorites: () => setPage("favorites")
+    }),
+    page === "favorites" && React.createElement(FavoritesPage, { 
+      onBack: () => setPage("home"),
+      showToast
+    }),
+    page === "recommend" && React.createElement(RecommendationPage, { 
+      machines, 
+      grinders,
+      onBack: () => setPage("home"),
+      showToast
+    }),
+    page === "compare" && React.createElement(ComparePage, { 
+      machines, 
+      grinders,
+      onBack: () => setPage("home"),
+      showToast
+    }),
+    page === "browse" && React.createElement(BrowsePage, { 
+      machines, 
+      grinders,
+      onBack: () => setPage("home"),
+      showToast
+    }),
+    React.createElement("div", { className: "toast-container" },
+      toasts.map(toast => React.createElement(Toast, { 
+        key: toast.id, 
+        message: toast.message, 
+        type: toast.type, 
+        duration: toast.duration,
+        onClose: () => removeToast(toast.id)
+      }))
+    )
+  );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
